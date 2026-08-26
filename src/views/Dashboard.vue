@@ -12,6 +12,9 @@ const lavagensHoje = ref(0)
 const baiasOcupadas = ref(0)
 const baiasLivres = ref(0)
 
+const faturamentoMes = ref(0)
+const lavagensMes = ref(0)
+
 const ranking = ref([])
 
 async function carregarDashboard() {
@@ -22,14 +25,16 @@ async function carregarDashboard() {
   baiasLivres.value = response.data.baias_livres
 }
 
-async function carregarRanking() {
+async function carregarRelatorioMensal() {
   const response = await api.get('/api/relatorio-mensal/')
+  faturamentoMes.value = response.data.faturamento_mes
+  lavagensMes.value = response.data.total_lavagens_mes
   ranking.value = response.data.ranking_funcionarios
 }
 
 onMounted(async () => {
   try {
-    await Promise.all([carregarDashboard(), carregarRanking()])
+    await Promise.all([carregarDashboard(), carregarRelatorioMensal()])
   } catch (e) {
     erro.value = 'Não foi possível carregar os dados do dashboard.'
   } finally {
@@ -49,11 +54,18 @@ onMounted(async () => {
     <p v-else-if="erro" class="dashboard__status dashboard__status--erro">{{ erro }}</p>
 
     <template v-else>
+      <h2 class="dashboard__secao-titulo">Hoje</h2>
       <div class="dashboard__cards">
         <CardResumo titulo="Faturamento hoje" :valor="`R$ ${faturamentoHoje.toFixed(2)}`" />
         <CardResumo titulo="Lavagens hoje" :valor="lavagensHoje" />
         <CardResumo titulo="Baias ocupadas" :valor="baiasOcupadas" />
         <CardResumo titulo="Baias livres" :valor="baiasLivres" />
+      </div>
+
+      <h2 class="dashboard__secao-titulo">Este mês</h2>
+      <div class="dashboard__cards">
+        <CardResumo titulo="Faturamento do mês" :valor="`R$ ${faturamentoMes.toFixed(2)}`" />
+        <CardResumo titulo="Lavagens no mês" :valor="lavagensMes" />
       </div>
 
       <h2 class="dashboard__secao-titulo">Ranking de funcionários no mês</h2>
