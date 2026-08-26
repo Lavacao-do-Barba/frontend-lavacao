@@ -14,16 +14,16 @@ defineProps({
         <tr>
           <th>Funcionário</th>
           <th>Lavagens</th>
-          <th>Faltas</th>
-          <th>Atrasos</th>
+          <th>Metas batidas</th>
+          <th>Bônus total</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="f in funcionarios" :key="f.nome">
-          <td>{{ f.nome }}</td>
-          <td>{{ f.lavagens }}</td>
-          <td>{{ f.faltas }}</td>
-          <td>{{ f.atrasos }}</td>
+        <tr v-for="f in funcionarios" :key="f.funcionario">
+          <td>{{ f.funcionario }}</td>
+          <td>{{ f.total_lavagens }}</td>
+          <td>{{ f.metas_batidas }}</td>
+          <td>R$ {{ f.total_adicional.toFixed(2) }}</td>
         </tr>
       </tbody>
     </table>

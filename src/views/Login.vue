@@ -53,7 +53,7 @@ async function handleSubmit() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: var(--bg-primary);
+  background: radial-gradient(circle at top, var(--bg-secondary), var(--bg-primary) 70%);
 }
 
 .login__card {
@@ -67,6 +67,7 @@ async function handleSubmit() {
   flex-direction: column;
   gap: 0.5rem;
   align-items: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
 .login__logo {
@@ -96,22 +97,33 @@ async function handleSubmit() {
   font-size: 0.95rem;
   background: var(--bg-secondary);
   color: var(--text-primary);
+  transition: border-color 0.2s ease;
+}
+
+.login__card input:focus {
+  outline: none;
+  border-color: var(--accent-light);
 }
 
 .login__card button {
   width: 100%;
   margin-top: 1.5rem;
   padding: 0.75rem;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
   color: #fff;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: 600;
+  transition: opacity 0.2s ease, transform 0.1s ease;
 }
 
 .login__card button:hover {
-  background: var(--accent-light);
+  opacity: 0.92;
+}
+
+.login__card button:active {
+  transform: scale(0.98);
 }
 
 .login__card button:disabled {

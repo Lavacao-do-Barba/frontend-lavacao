@@ -1,19 +1,41 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import api from '../services/api'
 import CardResumo from '../components/CardResumo.vue'
 import TabelaFuncionarios from '../components/TabelaFuncionarios.vue'
 
-// TODO: substituir por chamada real à API na próxima issue
-const totalFuncionarios = ref(8)
-const lavagensDoMes = ref(142)
-const faltasDoMes = ref(3)
-const atrasosDoMes = ref(5)
+const carregando = ref(true)
+const erro = ref('')
 
-const funcionarios = ref([
-  { nome: 'João Silva', lavagens: 24, faltas: 1, atrasos: 0 },
-  { nome: 'Maria Souza', lavagens: 31, faltas: 0, atrasos: 2 },
-  { nome: 'Pedro Lima', lavagens: 18, faltas: 2, atrasos: 1 },
-])
+const faturamentoHoje = ref(0)
+const lavagensHoje = ref(0)
+const baiasOcupadas = ref(0)
+const baiasLivres = ref(0)
+
+const ranking = ref([])
+
+async function carregarDashboard() {
+  const response = await api.get('/api/dashboard/')
+  faturamentoHoje.value = response.data.faturamento_hoje
+  lavagensHoje.value = response.data.total_lavagens_hoje
+  baiasOcupadas.value = response.data.baias_ocupadas
+  baiasLivres.value = response.data.baias_livres
+}
+
+async function carregarRanking() {
+  const response = await api.get('/api/relatorio-mensal/')
+  ranking.value = response.data.ranking_funcionarios
+}
+
+onMounted(async () => {
+  try {
+    await Promise.all([carregarDashboard(), carregarRanking()])
+  } catch (e) {
+    erro.value = 'Não foi possível carregar os dados do dashboard.'
+  } finally {
+    carregando.value = false
+  }
+})
 </script>
 
 <template>
@@ -23,15 +45,20 @@ const funcionarios = ref([
       <p class="dashboard__subtitulo">Visão geral do seu negócio</p>
     </div>
 
-    <div class="dashboard__cards">
-      <CardResumo titulo="Funcionários" :valor="totalFuncionarios" />
-      <CardResumo titulo="Lavagens no mês" :valor="lavagensDoMes" variacao="▲ atualizado hoje" />
-      <CardResumo titulo="Faltas no mês" :valor="faltasDoMes" />
-      <CardResumo titulo="Atrasos no mês" :valor="atrasosDoMes" />
-    </div>
+    <p v-if="carregando" class="dashboard__status">Carregando...</p>
+    <p v-else-if="erro" class="dashboard__status dashboard__status--erro">{{ erro }}</p>
 
-    <h2 class="dashboard__secao-titulo">Resumo por funcionário</h2>
-    <TabelaFuncionarios :funcionarios="funcionarios" />
+    <template v-else>
+      <div class="dashboard__cards">
+        <CardResumo titulo="Faturamento hoje" :valor="`R$ ${faturamentoHoje.toFixed(2)}`" />
+        <CardResumo titulo="Lavagens hoje" :valor="lavagensHoje" />
+        <CardResumo titulo="Baias ocupadas" :valor="baiasOcupadas" />
+        <CardResumo titulo="Baias livres" :valor="baiasLivres" />
+      </div>
+
+      <h2 class="dashboard__secao-titulo">Ranking de funcionários no mês</h2>
+      <TabelaFuncionarios :funcionarios="ranking" />
+    </template>
   </div>
 </template>
 
@@ -62,5 +89,13 @@ const funcionarios = ref([
 .dashboard__secao-titulo {
   margin-bottom: 1rem;
   font-size: 1.1rem;
+}
+
+.dashboard__status {
+  color: var(--text-secondary);
+}
+
+.dashboard__status--erro {
+  color: var(--danger);
 }
 </style>
