@@ -1,9 +1,17 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { logout } from '../services/auth'
+import logo from '../assets/logo.png'
 
 const links = [
-  { nome: 'Dashboard', rota: '/' },
+  { nome: 'Dashboard', rota: '/', icone: '📊' },
+  { nome: 'Lavagens', rota: '/lavagens', icone: '🚿' },
+  { nome: 'Clientes', rota: '/clientes', icone: '👥' },
+  { nome: 'Financeiro', rota: '/financeiro', icone: '💰' },
+  { nome: 'Relatórios', rota: '/relatorios', icone: '📈' },
+  { nome: 'Veículos', rota: '/veiculos', icone: '🚚' },
+  { nome: 'Pagamentos', rota: '/pagamentos', icone: '💳' },
+  { nome: 'Configurações', rota: '/configuracoes', icone: '⚙️' },
 ]
 
 const router = useRouter()
@@ -16,64 +24,95 @@ function handleLogout() {
 
 <template>
   <aside class="sidebar">
-    <h2 class="sidebar__logo">Lavação do Barba</h2>
-    <nav>
+    <div class="sidebar__brand">
+      <img :src="logo" alt="Lavação do Barba" class="sidebar__logo-img" />
+    </div>
+
+    <nav class="sidebar__nav">
       <ul>
         <li v-for="link in links" :key="link.rota">
-          <router-link :to="link.rota">{{ link.nome }}</router-link>
+          <router-link :to="link.rota" class="sidebar__link">
+            <span class="sidebar__icon">{{ link.icone }}</span>
+            {{ link.nome }}
+          </router-link>
         </li>
       </ul>
     </nav>
+
     <button class="sidebar__logout" @click="handleLogout">Sair</button>
   </aside>
 </template>
 
 <style scoped>
 .sidebar {
-  width: 220px;
+  width: 240px;
   height: 100vh;
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--bg-sidebar);
   padding: 1.5rem 1rem;
   position: fixed;
   left: 0;
   top: 0;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--border-color);
 }
 
-.sidebar__logo {
-  font-size: 1.1rem;
+.sidebar__brand {
+  display: flex;
+  justify-content: center;
   margin-bottom: 2rem;
+  padding: 0.5rem;
 }
 
-.sidebar nav {
+.sidebar__logo-img {
+  width: 100%;
+  max-width: 160px;
+  object-fit: contain;
+}
+
+.sidebar__nav {
   flex: 1;
+  overflow-y: auto;
 }
 
-.sidebar nav ul li {
-  padding: 0.5rem 0;
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  transition: background 0.15s, color 0.15s;
 }
 
-.sidebar nav ul li a {
-  color: #ccc;
+.sidebar__link:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
-.sidebar nav ul li a:hover {
+.router-link-active.sidebar__link {
+  background: var(--accent);
   color: #fff;
+}
+
+.sidebar__icon {
+  font-size: 1rem;
 }
 
 .sidebar__logout {
   background: transparent;
-  border: 1px solid #444;
-  color: #ccc;
-  padding: 0.5rem;
-  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.65rem;
+  border-radius: var(--radius);
   cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .sidebar__logout:hover {
-  background: #333;
-  color: #fff;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 </style>
