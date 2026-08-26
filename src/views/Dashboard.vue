@@ -18,7 +18,6 @@ const funcionarios = ref([
 
 <template>
   <div class="dashboard">
-    <h1>Dashboard</h1>
 
     <div class="dashboard__cards">
       <CardResumo titulo="Funcionários" :valor="totalFuncionarios" />
