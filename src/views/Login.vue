@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { login } from '../services/auth'
+import logo from '../assets/logo.png'
 
 const cnpj = ref('')
 const password = ref('')
@@ -28,7 +29,7 @@ async function handleSubmit() {
 <template>
   <div class="login">
     <form class="login__card" @submit.prevent="handleSubmit">
-      <h1>Lavação do Barba</h1>
+      <img :src="logo" alt="Lavação do Barba" class="login__logo" />
       <p class="login__subtitulo">Acesse sua conta</p>
 
       <label for="cnpj">CNPJ</label>
@@ -52,52 +53,65 @@ async function handleSubmit() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #f4f5f7;
+  background: var(--bg-primary);
 }
 
 .login__card {
-  background: #fff;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   padding: 2.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius);
   width: 100%;
   max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  align-items: center;
 }
 
-.login__card h1 {
-  font-size: 1.3rem;
+.login__logo {
+  width: 140px;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
 }
 
 .login__subtitulo {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
+  align-self: flex-start;
 }
 
 .login__card label {
   font-size: 0.85rem;
-  color: #444;
+  color: var(--text-secondary);
   margin-top: 0.75rem;
+  align-self: flex-start;
 }
 
 .login__card input {
+  width: 100%;
   padding: 0.65rem 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
   font-size: 0.95rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .login__card button {
+  width: 100%;
   margin-top: 1.5rem;
   padding: 0.75rem;
-  background: #1a1a1a;
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
   font-weight: 600;
+}
+
+.login__card button:hover {
+  background: var(--accent-light);
 }
 
 .login__card button:disabled {
@@ -106,7 +120,8 @@ async function handleSubmit() {
 }
 
 .login__erro {
-  color: #d33;
+  color: var(--danger);
   font-size: 0.85rem;
+  align-self: flex-start;
 }
 </style>
