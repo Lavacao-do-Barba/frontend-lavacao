@@ -6,8 +6,7 @@ import logo from '../assets/logo.png'
 const links = [
   { nome: 'Dashboard', rota: '/', icone: '📊' },
   { nome: 'Lavagens', rota: '/lavagens', icone: '🚿' },
-  { nome: 'Clientes', rota: '/clientes', icone: '👥' },
-  { nome: 'Financeiro', rota: '/financeiro', icone: '💰' },
+  { nome: 'Presença', rota: '/presenca', icone: '🗓️' },
   { nome: 'Relatórios', rota: '/relatorios', icone: '📈' },
   { nome: 'Veículos', rota: '/veiculos', icone: '🚚' },
   { nome: 'Pagamentos', rota: '/pagamentos', icone: '💳' },
