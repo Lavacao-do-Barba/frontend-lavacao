@@ -3,8 +3,9 @@ import { ref, onMounted } from 'vue'
 import api from '../services/api'
 
 const lavagens = ref([])
-const baias = ref([])
+const rampas = ref([])
 const funcionarios = ref([])
+const veiculos = ref([])
 const carregando = ref(true)
 const erro = ref('')
 const salvando = ref(false)
@@ -13,6 +14,7 @@ const finalizando = ref(null)
 const novaLavagem = ref({
   cliente_nome: '',
   placa: '',
+  veiculo: '',
   baia: '',
   funcionario: '',
   forma_pagamento: 'dinheiro',
@@ -31,15 +33,27 @@ function preencherAgora() {
   novaLavagem.value.horario_entrada = agoraParaInput()
 }
 
+function aoSelecionarVeiculo() {
+  const veiculoSel = veiculos.value.find(v => v.id === novaLavagem.value.veiculo)
+  if (veiculoSel) {
+    novaLavagem.value.placa = veiculoSel.placa
+    if (veiculoSel.cliente_nome) {
+      novaLavagem.value.cliente_nome = veiculoSel.cliente_nome
+    }
+  }
+}
+
 async function carregarDados() {
-  const [resLavagens, resBaias, resFuncionarios] = await Promise.all([
+  const [resLavagens, resRampas, resFuncionarios, resVeiculos] = await Promise.all([
     api.get('/api/lavagens/'),
-    api.get('/api/baias/'),
+    api.get('/api/rampas/'),
     api.get('/api/funcionarios/'),
+    api.get('/api/veiculos-cadastro/'),
   ])
   lavagens.value = resLavagens.data.results || resLavagens.data
-  baias.value = resBaias.data.results || resBaias.data
+  rampas.value = resRampas.data.results || resRampas.data
   funcionarios.value = resFuncionarios.data.results || resFuncionarios.data
+  veiculos.value = resVeiculos.data.results || resVeiculos.data
 }
 
 async function cadastrarLavagem() {
@@ -51,6 +65,7 @@ async function cadastrarLavagem() {
     novaLavagem.value = {
       cliente_nome: '',
       placa: '',
+      veiculo: '',
       baia: '',
       funcionario: '',
       forma_pagamento: 'dinheiro',
@@ -100,20 +115,30 @@ onMounted(async () => {
 
     <form class="lavagens__form" @submit.prevent="cadastrarLavagem">
       <div class="lavagens__campo">
+        <label>Veículo Registrado</label>
+        <select v-model="novaLavagem.veiculo" @change="aoSelecionarVeiculo">
+          <option value="">Nenhum (Digitar avulso)</option>
+          <option v-for="v in veiculos" :key="v.id" :value="v.id">
+            {{ v.placa }} - {{ v.modelo || 'Sem modelo' }}
+          </option>
+        </select>
+      </div>
+
+      <div class="lavagens__campo">
         <label>Nome do Cliente</label>
         <input v-model="novaLavagem.cliente_nome" type="text" placeholder="Ex: Tulio Salvador" required />
       </div>
 
       <div class="lavagens__campo">
-        <label>Placa (Opcional)</label>
+        <label>Placa</label>
         <input v-model="novaLavagem.placa" type="text" placeholder="ABC1D23" />
       </div>
 
       <div class="lavagens__campo">
-        <label>Baia</label>
+        <label>Rampa</label>
         <select v-model="novaLavagem.baia" required>
           <option value="" disabled>Selecione</option>
-          <option v-for="b in baias" :key="b.id" :value="b.id">{{ b.identificador }}</option>
+          <option v-for="r in rampas" :key="r.id" :value="r.id">{{ r.identificador }}</option>
         </select>
       </div>
 
@@ -165,6 +190,7 @@ onMounted(async () => {
         <tr>
           <th>Cliente</th>
           <th>Placa</th>
+          <th>Rampa</th>
           <th>Observação</th>
           <th>Valor</th>
           <th>Pagamento</th>
@@ -177,6 +203,7 @@ onMounted(async () => {
         <tr v-for="l in lavagens" :key="l.id">
           <td><strong>{{ l.cliente_nome }}</strong></td>
           <td>{{ l.placa || '—' }}</td>
+          <td>{{ l.rampa_nome || '—' }}</td>
           <td>{{ l.observacao || '—' }}</td>
           <td>R$ {{ Number(l.valor).toFixed(2) }}</td>
           <td>{{ l.forma_pagamento }}</td>

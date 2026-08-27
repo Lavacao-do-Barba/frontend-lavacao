@@ -9,8 +9,8 @@ const erro = ref('')
 
 const faturamentoHoje = ref(0)
 const lavagensHoje = ref(0)
-const baiasOcupadas = ref(0)
-const baiasLivres = ref(0)
+const rampasOcupadas = ref(0)
+const rampasLivres = ref(0)
 
 const faturamentoMes = ref(0)
 const lavagensMes = ref(0)
@@ -21,8 +21,8 @@ async function carregarDashboard() {
   const response = await api.get('/api/dashboard/')
   faturamentoHoje.value = response.data.faturamento_hoje
   lavagensHoje.value = response.data.total_lavagens_hoje
-  baiasOcupadas.value = response.data.baias_ocupadas
-  baiasLivres.value = response.data.baias_livres
+  rampasOcupadas.value = response.data.baias_ocupadas || response.data.rampas_ocupadas || 0
+  rampasLivres.value = response.data.baias_livres || response.data.rampas_livres || 0
 }
 
 async function carregarRelatorioMensal() {
@@ -58,8 +58,8 @@ onMounted(async () => {
       <div class="dashboard__cards">
         <CardResumo titulo="Faturamento hoje" :valor="`R$ ${faturamentoHoje.toFixed(2)}`" />
         <CardResumo titulo="Lavagens hoje" :valor="lavagensHoje" />
-        <CardResumo titulo="Baias ocupadas" :valor="baiasOcupadas" />
-        <CardResumo titulo="Baias livres" :valor="baiasLivres" />
+        <CardResumo titulo="Rampas ocupadas" :valor="rampasOcupadas" />
+        <CardResumo titulo="Rampas livres" :valor="rampasLivres" />
       </div>
 
       <h2 class="dashboard__secao-titulo">Este mês</h2>
