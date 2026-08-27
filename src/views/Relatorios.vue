@@ -5,18 +5,17 @@ import api from '../services/api'
 const resultados = ref([])
 const carregando = ref(true)
 const erro = ref('')
-const mesSelecionado = ref(new Date().toISOString().slice(0, 7))
+const mesSelecionado = ref(new Date().toISOString().slice(0, 7)) // YYYY-MM
 
 async function carregarResultados() {
   carregando.value = true
   erro.value = ''
   try {
-    const response = await api.get('/api/resultados-mensais/')
-    const [ano, mes] = mesSelecionado.value.split('-')
-    resultados.value = response.data.results.filter((r) => {
-      const dataRef = new Date(r.mes_referencia)
-      return dataRef.getFullYear() === Number(ano) && dataRef.getMonth() + 1 === Number(mes)
+    // Filtro por mês feito no backend (evita bug de timezone do Date() no front)
+    const response = await api.get('/api/relatorio-mensal/', {
+      params: { mes: mesSelecionado.value },
     })
+    resultados.value = response.data.ranking_funcionarios
   } catch (e) {
     erro.value = 'Não foi possível carregar o relatório.'
   } finally {
@@ -56,7 +55,7 @@ onMounted(carregarResultados)
         </tr>
       </thead>
       <tbody>
-        <tr v-for="r in resultados" :key="r.id">
+        <tr v-for="r in resultados" :key="r.funcionario">
           <td>{{ r.funcionario }}</td>
           <td>{{ r.total_lavagens }}</td>
           <td>{{ r.metas_batidas }}</td>
