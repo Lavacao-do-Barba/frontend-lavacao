@@ -15,7 +15,7 @@ const novaLavagem = ref({
   cliente_nome: '',
   placa: '',
   veiculo: '',
-  baia: '',
+  rampa: '',
   funcionario: '',
   forma_pagamento: 'dinheiro',
   valor: '',
@@ -66,7 +66,7 @@ async function cadastrarLavagem() {
       cliente_nome: '',
       placa: '',
       veiculo: '',
-      baia: '',
+      rampa: '',
       funcionario: '',
       forma_pagamento: 'dinheiro',
       valor: '',
@@ -136,7 +136,7 @@ onMounted(async () => {
 
       <div class="lavagens__campo">
         <label>Rampa</label>
-        <select v-model="novaLavagem.baia" required>
+        <select v-model="novaLavagem.rampa" required>
           <option value="" disabled>Selecione</option>
           <option v-for="r in rampas" :key="r.id" :value="r.id">{{ r.identificador }}</option>
         </select>

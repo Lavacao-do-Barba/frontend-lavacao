@@ -5,7 +5,8 @@ import Lavagens from '../views/Lavagens.vue'
 import Relatorios from '../views/Relatorios.vue'
 import Veiculos from '../views/Veiculos.vue'
 import Pagamentos from '../views/Pagamentos.vue'
-import Configuracoes from '../views/Configuracoes.vue'
+import Funcionarios from '../views/Funcionarios.vue'
+import Rampas from '../views/Rampas.vue'
 import Presenca from '../views/Presenca.vue'
 import TabelaPrecos from '../views/TabelaPrecos.vue'
 import Clientes from '../views/Clientes.vue'
@@ -20,7 +21,8 @@ const routes = [
   { path: '/relatorios', name: 'relatorios', component: Relatorios, meta: { requiresAuth: true } },
   { path: '/veiculos', name: 'veiculos', component: Veiculos, meta: { requiresAuth: true } },
   { path: '/pagamentos', name: 'pagamentos', component: Pagamentos, meta: { requiresAuth: true } },
-  { path: '/configuracoes', name: 'configuracoes', component: Configuracoes, meta: { requiresAuth: true } },
+  { path: '/funcionarios', name: 'funcionarios', component: Funcionarios, meta: { requiresAuth: true } },
+  { path: '/rampas', name: 'rampas', component: Rampas, meta: { requiresAuth: true } },
   { path: '/presenca', name: 'presenca', component: Presenca, meta: { requiresAuth: true } },
 ]
 
