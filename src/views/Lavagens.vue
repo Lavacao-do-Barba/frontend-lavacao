@@ -10,12 +10,20 @@ const erro = ref('')
 const salvando = ref(false)
 const finalizando = ref(null)
 
+// Busca de Veículo/Cliente
+const buscaVeiculo = ref('')
+const listaVeiculos = ref([])
+const focoBusca = ref(false)
+const veiculoSelecionado = ref(null)
+const historicoValores = ref([])
+
 const novaLavagem = ref({
-  caminhao_placa: '',
+  veiculo: '',
   baia: '',
   funcionario: '',
   forma_pagamento: 'dinheiro',
   valor: '',
+  observacao: '',
   horario_entrada: '',
 })
 
@@ -35,25 +43,73 @@ async function carregarDados() {
     api.get('/api/baias/'),
     api.get('/api/funcionarios/'),
   ])
-  lavagens.value = resLavagens.data.results
-  baias.value = resBaias.data.results
-  funcionarios.value = resFuncionarios.data.results
+  lavagens.value = resLavagens.data.results || resLavagens.data
+  baias.value = resBaias.data.results || resBaias.data
+  funcionarios.value = resFuncionarios.data.results || resFuncionarios.data
+}
+
+async function buscarVeiculos() {
+  if (buscaVeiculo.value.length < 2) {
+    listaVeiculos.value = []
+    focoBusca.value = false
+    return
+  }
+  try {
+    const res = await api.get('/api/veiculos-cadastro/', {
+      params: { busca: buscaVeiculo.value }
+    })
+    listaVeiculos.value = res.data.results || res.data
+    focoBusca.value = true
+  } catch (e) {
+    console.error('Erro ao buscar veículos:', e)
+  }
+}
+
+async function selecionarVeiculo(v) {
+  veiculoSelecionado.value = v
+  novaLavagem.value.veiculo = v.id
+  buscaVeiculo.value = `${v.placa} - ${v.cliente_nome || 'Sem dono'}`
+  listaVeiculos.value = []
+  focoBusca.value = false
+
+  if (v.cliente) {
+    try {
+      const res = await api.get('/api/lavagens/', {
+        params: { veiculo__cliente: v.cliente }
+      })
+      const historico = res.data.results || res.data
+      historicoValores.value = historico.slice(0, 3).map(i => Number(i.valor).toFixed(2))
+    } catch (e) {
+      console.error('Erro ao buscar histórico do cliente:', e)
+    }
+  } else {
+    historicoValores.value = []
+  }
 }
 
 async function cadastrarLavagem() {
+  if (!novaLavagem.value.veiculo) {
+    erro.value = 'Selecione um veículo válido da lista.'
+    return
+  }
+
   salvando.value = true
   erro.value = ''
 
   try {
     await api.post('/api/lavagens/', novaLavagem.value)
     novaLavagem.value = {
-      caminhao_placa: '',
+      veiculo: '',
       baia: '',
       funcionario: '',
       forma_pagamento: 'dinheiro',
       valor: '',
+      observacao: '',
       horario_entrada: '',
     }
+    buscaVeiculo.value = ''
+    veiculoSelecionado.value = null
+    historicoValores.value = []
     await carregarDados()
   } catch (e) {
     erro.value = 'Não foi possível cadastrar a lavagem. Confira os dados.'
@@ -95,9 +151,32 @@ onMounted(async () => {
     </div>
 
     <form class="lavagens__form" @submit.prevent="cadastrarLavagem">
+      <!-- Busca de Veículo / Cliente -->
+      <div class="lavagens__campo lavagens__campo--busca">
+        <label>Veículo / Cliente (Placa ou Nome)</label>
+        <input
+          v-model="buscaVeiculo"
+          type="text"
+          placeholder="Digite a placa ou nome..."
+          required
+          @input="buscarVeiculos"
+          @focus="focoBusca = true"
+        />
+        <ul v-if="listaVeiculos.length && focoBusca" class="lavagens__dropdown">
+          <li v-for="item in listaVeiculos" :key="item.id" @click="selecionarVeiculo(item)">
+            <strong>{{ item.placa }}</strong> — {{ item.cliente_nome || 'Sem dono' }} ({{ item.modelo || 'S/ Modelo' }})
+          </li>
+        </ul>
+      </div>
+
+      <!-- Cliente Vinculado (ReadOnly) -->
       <div class="lavagens__campo">
-        <label>Placa</label>
-        <input v-model="novaLavagem.caminhao_placa" type="text" placeholder="ABC1D23" required />
+        <label>Cliente</label>
+        <input
+          type="text"
+          :value="veiculoSelecionado ? (veiculoSelecionado.cliente_nome || 'Sem dono') : '—'"
+          disabled
+        />
       </div>
 
       <div class="lavagens__campo">
@@ -126,8 +205,16 @@ onMounted(async () => {
       </div>
 
       <div class="lavagens__campo">
-        <label>Valor</label>
+        <label>Valor (R$)</label>
         <input v-model="novaLavagem.valor" type="number" step="0.01" placeholder="0.00" required />
+        <span v-if="historicoValores.length" class="lavagens__dica-historico">
+          Últimos: {{ historicoValores.map(v => `R$ ${v}`).join(' | ') }}
+        </span>
+      </div>
+
+      <div class="lavagens__campo">
+        <label>Observação / Modelo</label>
+        <input v-model="novaLavagem.observacao" type="text" placeholder="Ex: FH 540 Vermelho" />
       </div>
 
       <div class="lavagens__campo">
@@ -138,7 +225,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <button type="submit" :disabled="salvando">
+      <button type="submit" :disabled="salvando || !novaLavagem.veiculo">
         {{ salvando ? 'Salvando...' : 'Registrar lavagem' }}
       </button>
     </form>
@@ -150,6 +237,8 @@ onMounted(async () => {
       <thead>
         <tr>
           <th>Placa</th>
+          <th>Cliente</th>
+          <th>Observação</th>
           <th>Valor</th>
           <th>Pagamento</th>
           <th>Entrada</th>
@@ -159,7 +248,9 @@ onMounted(async () => {
       </thead>
       <tbody>
         <tr v-for="l in lavagens" :key="l.id">
-          <td>{{ l.caminhao_placa }}</td>
+          <td><strong>{{ l.placa }}</strong></td>
+          <td>{{ l.cliente_nome || '—' }}</td>
+          <td>{{ l.observacao || '—' }}</td>
           <td>R$ {{ Number(l.valor).toFixed(2) }}</td>
           <td>{{ l.forma_pagamento }}</td>
           <td>{{ new Date(l.horario_entrada).toLocaleString('pt-BR') }}</td>
@@ -214,7 +305,12 @@ onMounted(async () => {
   flex-direction: column;
   gap: 0.3rem;
   flex: 1;
-  min-width: 150px;
+  min-width: 160px;
+  position: relative;
+}
+
+.lavagens__campo--busca {
+  min-width: 220px;
 }
 
 .lavagens__campo label {
@@ -230,6 +326,49 @@ onMounted(async () => {
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.lavagens__campo input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.lavagens__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 10;
+  list-style: none;
+  padding: 0;
+  margin: 0.2rem 0 0 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lavagens__dropdown li {
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lavagens__dropdown li:last-child {
+  border-bottom: none;
+}
+
+.lavagens__dropdown li:hover {
+  background: var(--bg-secondary);
+}
+
+.lavagens__dica-historico {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
 }
 
 .lavagens__campo-linha {
