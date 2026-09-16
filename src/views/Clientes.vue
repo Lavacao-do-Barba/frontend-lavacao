@@ -135,8 +135,8 @@ onMounted(async () => {
           </div>
 
           <div class="field-group">
-            <label>Estado:</label>
-            <input v-model="cliente.uf" class="short" autocomplete="off" name="cli-uf" />
+            <label>Estado (sigla):</label>
+            <input v-model="cliente.uf" class="short" maxlength="2" placeholder="SC" autocomplete="off" name="cli-uf" style="text-transform: uppercase" />
           </div>
         </div>
       </fieldset>
