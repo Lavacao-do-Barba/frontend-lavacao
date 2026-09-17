@@ -6,12 +6,14 @@ const lavagens = ref([])
 const rampas = ref([])
 const funcionarios = ref([])
 const veiculos = ref([])
+const clientes = ref([])
 const carregando = ref(true)
 const erro = ref('')
 const salvando = ref(false)
 const finalizando = ref(null)
 
 const novaLavagem = ref({
+  cliente: null,
   cliente_nome: '',
   placa: '',
   veiculo: '',
@@ -33,11 +35,20 @@ function preencherAgora() {
   novaLavagem.value.horario_entrada = agoraParaInput()
 }
 
+function aoSelecionarCliente() {
+  const clienteSel = clientes.value.find(c => c.id === novaLavagem.value.cliente)
+  if (clienteSel) {
+    novaLavagem.value.cliente_nome = clienteSel.nome
+  }
+}
+
 function aoSelecionarVeiculo() {
   const veiculoSel = veiculos.value.find(v => v.id === novaLavagem.value.veiculo)
   if (veiculoSel) {
     novaLavagem.value.placa = veiculoSel.placa
-    novaLavagem.value.cliente = veiculoSel.cliente || ''
+    if (veiculoSel.cliente) {
+      novaLavagem.value.cliente = veiculoSel.cliente
+    }
     if (veiculoSel.cliente_nome) {
       novaLavagem.value.cliente_nome = veiculoSel.cliente_nome
     }
@@ -45,16 +56,18 @@ function aoSelecionarVeiculo() {
 }
 
 async function carregarDados() {
-  const [resLavagens, resRampas, resFuncionarios, resVeiculos] = await Promise.all([
+  const [resLavagens, resRampas, resFuncionarios, resVeiculos, resClientes] = await Promise.all([
     api.get('/api/lavagens/'),
     api.get('/api/rampas/'),
     api.get('/api/funcionarios/'),
     api.get('/api/veiculos-cadastro/'),
+    api.get('/api/clientes/'),
   ])
   lavagens.value = resLavagens.data.results || resLavagens.data
   rampas.value = resRampas.data.results || resRampas.data
   funcionarios.value = resFuncionarios.data.results || resFuncionarios.data
   veiculos.value = resVeiculos.data.results || resVeiculos.data
+  clientes.value = resClientes.data.results || resClientes.data
 }
 
 async function cadastrarLavagem() {
@@ -64,6 +77,7 @@ async function cadastrarLavagem() {
   try {
     await api.post('/api/lavagens/', novaLavagem.value)
     novaLavagem.value = {
+      cliente: null,
       cliente_nome: '',
       placa: '',
       veiculo: '',
@@ -121,6 +135,16 @@ onMounted(async () => {
           <option value="">Nenhum (Digitar avulso)</option>
           <option v-for="v in veiculos" :key="v.id" :value="v.id">
             {{ v.placa }} - {{ v.modelo || 'Sem modelo' }}
+          </option>
+        </select>
+      </div>
+
+      <div class="lavagens__campo">
+        <label>Cliente Cadastrado</label>
+        <select v-model="novaLavagem.cliente" @change="aoSelecionarCliente">
+          <option :value="null">Nenhum (Digitar nome abaixo)</option>
+          <option v-for="c in clientes" :key="c.id" :value="c.id">
+            {{ c.nome }} {{ c.cpf_cnpj ? `(${c.cpf_cnpj})` : '' }}
           </option>
         </select>
       </div>
