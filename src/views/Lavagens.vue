@@ -16,7 +16,7 @@ const novaLavagem = ref({
   cliente: null,
   cliente_nome: '',
   placa: '',
-  veiculo: '',
+  veiculo: null,
   rampa: '',
   funcionario: '',
   forma_pagamento: 'dinheiro',
@@ -43,6 +43,7 @@ function aoSelecionarCliente() {
 }
 
 function aoSelecionarVeiculo() {
+  if (!novaLavagem.value.veiculo) return
   const veiculoSel = veiculos.value.find(v => v.id === novaLavagem.value.veiculo)
   if (veiculoSel) {
     novaLavagem.value.placa = veiculoSel.placa
@@ -75,12 +76,25 @@ async function cadastrarLavagem() {
   erro.value = ''
 
   try {
-    await api.post('/api/lavagens/', novaLavagem.value)
+    // Tratamento para garantir formato correto ISO de data/hora
+    let entradaIso = novaLavagem.value.horario_entrada
+    if (entradaIso && !entradaIso.includes('Z') && entradaIso.length === 16) {
+      entradaIso = new Date(entradaIso).toISOString()
+    }
+
+    const payload = {
+      ...novaLavagem.value,
+      horario_entrada: entradaIso,
+      veiculo: novaLavagem.value.veiculo || null,
+      cliente: novaLavagem.value.cliente || null
+    }
+
+    await api.post('/api/lavagens/', payload)
     novaLavagem.value = {
       cliente: null,
       cliente_nome: '',
       placa: '',
-      veiculo: '',
+      veiculo: null,
       rampa: '',
       funcionario: '',
       forma_pagamento: 'dinheiro',
@@ -90,7 +104,7 @@ async function cadastrarLavagem() {
     }
     await carregarDados()
   } catch (e) {
-    erro.value = 'Não foi possível cadastrar a lavagem. Confira os dados.'
+    erro.value = e.response?.data ? JSON.stringify(e.response.data) : 'Não foi possível cadastrar a lavagem. Confira os dados.'
   } finally {
     salvando.value = false
   }
@@ -132,7 +146,7 @@ onMounted(async () => {
       <div class="lavagens__campo">
         <label>Veículo Registrado</label>
         <select v-model="novaLavagem.veiculo" @change="aoSelecionarVeiculo">
-          <option value="">Nenhum (Digitar avulso)</option>
+          <option :value="null">Nenhum (Digitar avulso)</option>
           <option v-for="v in veiculos" :key="v.id" :value="v.id">
             {{ v.placa }} - {{ v.modelo || 'Sem modelo' }}
           </option>
