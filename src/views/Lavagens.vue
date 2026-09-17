@@ -13,6 +13,7 @@ const salvando = ref(false)
 const finalizando = ref(null)
 
 const novaLavagem = ref({
+  unidade: 1, // ID padrão da unidade principal
   cliente: null,
   cliente_nome: '',
   placa: '',
@@ -76,7 +77,6 @@ async function cadastrarLavagem() {
   erro.value = ''
 
   try {
-    // Tratamento para garantir formato correto ISO de data/hora
     let entradaIso = novaLavagem.value.horario_entrada
     if (entradaIso && !entradaIso.includes('Z') && entradaIso.length === 16) {
       entradaIso = new Date(entradaIso).toISOString()
@@ -84,6 +84,7 @@ async function cadastrarLavagem() {
 
     const payload = {
       ...novaLavagem.value,
+      unidade: novaLavagem.value.unidade || 1,
       horario_entrada: entradaIso,
       veiculo: novaLavagem.value.veiculo || null,
       cliente: novaLavagem.value.cliente || null
@@ -91,6 +92,7 @@ async function cadastrarLavagem() {
 
     await api.post('/api/lavagens/', payload)
     novaLavagem.value = {
+      unidade: 1,
       cliente: null,
       cliente_nome: '',
       placa: '',
