@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
 
 const lavagens = ref([])
@@ -23,6 +23,20 @@ const novaLavagem = ref({
   valor: '',
   observacao: '',
   horario_entrada: '',
+})
+
+// Mapeia rampas em uso no momento (sem horário de saída)
+const rampasOcupadasIds = computed(() => {
+  return lavagens.value
+    .filter(l => !l.horario_saida)
+    .map(l => String(l.rampa))
+})
+
+// Mapeia funcionários ocupados no momento
+const funcionariosOcupadosIds = computed(() => {
+  return lavagens.value
+    .filter(l => !l.horario_saida)
+    .map(l => String(l.funcionario))
 })
 
 function agoraParaInput() {
@@ -75,13 +89,25 @@ async function cadastrarLavagem() {
   salvando.value = true
   erro.value = ''
 
+  // Validação Frontend: Impede o uso de Rampa ou Funcionário já em serviço
+  if (rampasOcupadasIds.value.includes(String(novaLavagem.value.rampa))) {
+    erro.value = 'Esta rampa já está em uso por outra lavagem em andamento.'
+    salvando.value = false
+    return
+  }
+
+  if (funcionariosOcupadosIds.value.includes(String(novaLavagem.value.funcionario))) {
+    erro.value = 'Este funcionário já está alocado em uma lavagem em andamento.'
+    salvando.value = false
+    return
+  }
+
   try {
     let entradaIso = novaLavagem.value.horario_entrada
     if (entradaIso && !entradaIso.includes('Z') && entradaIso.length === 16) {
       entradaIso = new Date(entradaIso).toISOString()
     }
 
-    // Pega a unidade vinculada à rampa ou ao funcionário selecionado
     const rampaSel = rampas.value.find(r => r.id === novaLavagem.value.rampa)
     const funcSel = funcionarios.value.find(f => f.id === novaLavagem.value.funcionario)
     const unidadeId = rampaSel?.unidade || funcSel?.unidade || null
@@ -98,6 +124,16 @@ async function cadastrarLavagem() {
     }
 
     await api.post('/api/lavagens/', payload)
+
+    // Atualiza status da rampa para Ocupada no backend (se houver o campo no modelo da API)
+    if (novaLavagem.value.rampa) {
+      try {
+        await api.patch(`/api/rampas/${novaLavagem.value.rampa}/`, { ocupada: true })
+      } catch (e) {
+        // Ignora caso o backend controle isso via signal/property
+      }
+    }
+
     novaLavagem.value = {
       cliente: null,
       cliente_nome: '',
@@ -118,12 +154,22 @@ async function cadastrarLavagem() {
   }
 }
 
-async function finalizarLavagem(id) {
+async function finalizarLavagem(id, rampaId) {
   finalizando.value = id
   try {
     await api.patch(`/api/lavagens/${id}/`, {
       horario_saida: new Date().toISOString(),
     })
+
+    // Libera a rampa no backend
+    if (rampaId) {
+      try {
+        await api.patch(`/api/rampas/${rampaId}/`, { ocupada: false })
+      } catch (e) {
+        // Ignora erro se for calculado
+      }
+    }
+
     await carregarDados()
   } catch (e) {
     erro.value = 'Não foi possível finalizar essa lavagem.'
@@ -185,7 +231,14 @@ onMounted(async () => {
         <label>Rampa</label>
         <select v-model="novaLavagem.rampa" required>
           <option value="" disabled>Selecione</option>
-          <option v-for="r in rampas" :key="r.id" :value="r.id">{{ r.identificador }}</option>
+          <option 
+            v-for="r in rampas" 
+            :key="r.id" 
+            :value="r.id" 
+            :disabled="rampasOcupadasIds.includes(String(r.id))"
+          >
+            {{ r.identificador }} {{ rampasOcupadasIds.includes(String(r.id)) ? '(Ocupada)' : '' }}
+          </option>
         </select>
       </div>
 
@@ -193,7 +246,14 @@ onMounted(async () => {
         <label>Funcionário</label>
         <select v-model="novaLavagem.funcionario" required>
           <option value="" disabled>Selecione</option>
-          <option v-for="f in funcionarios" :key="f.id" :value="f.id">{{ f.nome }}</option>
+          <option 
+            v-for="f in funcionarios" 
+            :key="f.id" 
+            :value="f.id"
+            :disabled="funcionariosOcupadosIds.includes(String(f.id))"
+          >
+            {{ f.nome }} {{ funcionariosOcupadosIds.includes(String(f.id)) ? '(Ocupado)' : '' }}
+          </option>
         </select>
       </div>
 
@@ -261,7 +321,7 @@ onMounted(async () => {
               v-if="!l.horario_saida"
               class="lavagens__botao-finalizar"
               :disabled="finalizando === l.id"
-              @click="finalizarLavagem(l.id)"
+              @click="finalizarLavagem(l.id, l.rampa)"
             >
               {{ finalizando === l.id ? 'Finalizando...' : 'Finalizar' }}
             </button>
@@ -322,6 +382,11 @@ onMounted(async () => {
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.lavagens__campo select option:disabled {
+  color: var(--text-secondary);
+  opacity: 0.5;
 }
 
 .lavagens__campo-linha {
