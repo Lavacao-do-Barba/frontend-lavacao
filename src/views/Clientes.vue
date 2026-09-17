@@ -1,11 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 
 const clientes = ref([])
 const carregando = ref(true)
 const salvando = ref(false)
 const erro = ref('')
+const filtro = ref('')
+
+const clienteSelecionado = ref(null)
+const historico = ref([])
+const carregandoHistorico = ref(false)
 
 const cliente = ref({
   codigo_pessoa: '',
@@ -41,6 +46,16 @@ const cliente = ref({
   nre: ''
 })
 
+const clientesFiltrados = computed(() => {
+  if (!filtro.value) return clientes.value
+  const termo = filtro.value.toLowerCase()
+  return clientes.value.filter(c =>
+    (c.nome || '').toLowerCase().includes(termo) ||
+    (c.cpf_cnpj || '').toLowerCase().includes(termo) ||
+    (c.telefone || '').toLowerCase().includes(termo)
+  )
+})
+
 async function carregarClientes() {
   const res = await api.get('/api/clientes/')
   clientes.value = res.data.results || res.data
@@ -59,6 +74,25 @@ async function cadastrarCliente() {
   }
 }
 
+async function verHistorico(c) {
+  clienteSelecionado.value = c
+  carregandoHistorico.value = true
+  historico.value = []
+  try {
+    const res = await api.get('/api/lavagens/', { params: { cliente: c.id } })
+    historico.value = res.data.results || res.data
+  } catch (e) {
+    erro.value = 'Não foi possível carregar o histórico desse cliente.'
+  } finally {
+    carregandoHistorico.value = false
+  }
+}
+
+function fecharHistorico() {
+  clienteSelecionado.value = null
+  historico.value = []
+}
+
 onMounted(async () => {
   try {
     await carregarClientes()
@@ -72,6 +106,77 @@ onMounted(async () => {
 
 <template>
   <div class="cliente-container">
+    <h1>Clientes</h1>
+
+    <section class="section">
+      <div class="lista-header">
+        <legend>Clientes Cadastrados</legend>
+        <input v-model="filtro" placeholder="Buscar por nome, CPF/CNPJ ou telefone" class="input-busca" />
+      </div>
+
+      <p v-if="carregando" class="status">Carregando...</p>
+
+      <table v-else class="tabela">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>CPF/CNPJ</th>
+            <th>Cidade</th>
+            <th>Telefone</th>
+            <th>Ativo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in clientesFiltrados" :key="c.id">
+            <td><strong>{{ c.nome }}</strong></td>
+            <td>{{ c.cpf_cnpj || '—' }}</td>
+            <td>{{ c.cidade || '—' }}</td>
+            <td>{{ c.telefone || c.celular || '—' }}</td>
+            <td>{{ c.cadastro_ativo ? 'Sim' : 'Não' }}</td>
+            <td>
+              <button class="btn-historico" @click="verHistorico(c)">Ver histórico</button>
+            </td>
+          </tr>
+          <tr v-if="clientesFiltrados.length === 0">
+            <td colspan="6" class="status">Nenhum cliente encontrado.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section v-if="clienteSelecionado" class="section">
+      <div class="lista-header">
+        <legend>Histórico de {{ clienteSelecionado.nome }}</legend>
+        <button class="btn-fechar" @click="fecharHistorico">Fechar</button>
+      </div>
+
+      <p v-if="carregandoHistorico" class="status">Carregando histórico...</p>
+      <table v-else class="tabela">
+        <thead>
+          <tr>
+            <th>Placa</th>
+            <th>Valor</th>
+            <th>Pagamento</th>
+            <th>Entrada</th>
+            <th>Saída</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="l in historico" :key="l.id">
+            <td>{{ l.placa || l.veiculo_placa || '—' }}</td>
+            <td>R$ {{ Number(l.valor).toFixed(2) }}</td>
+            <td>{{ l.forma_pagamento }}</td>
+            <td>{{ new Date(l.horario_entrada).toLocaleString('pt-BR') }}</td>
+            <td>{{ l.horario_saida ? new Date(l.horario_saida).toLocaleString('pt-BR') : '—' }}</td>
+          </tr>
+          <tr v-if="historico.length === 0">
+            <td colspan="5" class="status">Esse cliente ainda não tem lavagens registradas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <h1>Cadastro de Cliente</h1>
 
     <form class="form-wrapper" @submit.prevent="cadastrarCliente" autocomplete="off">
@@ -178,9 +283,12 @@ onMounted(async () => {
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 .cliente-container h1 {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 .form-wrapper {
   display: flex;
@@ -200,6 +308,51 @@ onMounted(async () => {
   color: var(--accent-light);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.lista-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.input-busca {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  min-width: 260px;
+}
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabela th, .tabela td {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+}
+.tabela th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+.status {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1rem;
+}
+.btn-historico, .btn-fechar {
+  padding: 0.4rem 0.9rem;
+  background: var(--bg-secondary);
+  color: var(--accent-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 .form-grid {
   display: grid;

@@ -37,6 +37,7 @@ function aoSelecionarVeiculo() {
   const veiculoSel = veiculos.value.find(v => v.id === novaLavagem.value.veiculo)
   if (veiculoSel) {
     novaLavagem.value.placa = veiculoSel.placa
+    novaLavagem.value.cliente = veiculoSel.cliente || ''
     if (veiculoSel.cliente_nome) {
       novaLavagem.value.cliente_nome = veiculoSel.cliente_nome
     }
