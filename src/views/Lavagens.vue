@@ -13,7 +13,6 @@ const salvando = ref(false)
 const finalizando = ref(null)
 
 const novaLavagem = ref({
-  unidade: 1, // ID padrão da unidade principal
   cliente: null,
   cliente_nome: '',
   placa: '',
@@ -82,17 +81,24 @@ async function cadastrarLavagem() {
       entradaIso = new Date(entradaIso).toISOString()
     }
 
+    // Pega a unidade vinculada à rampa ou ao funcionário selecionado
+    const rampaSel = rampas.value.find(r => r.id === novaLavagem.value.rampa)
+    const funcSel = funcionarios.value.find(f => f.id === novaLavagem.value.funcionario)
+    const unidadeId = rampaSel?.unidade || funcSel?.unidade || null
+
     const payload = {
       ...novaLavagem.value,
-      unidade: novaLavagem.value.unidade || 1,
       horario_entrada: entradaIso,
       veiculo: novaLavagem.value.veiculo || null,
       cliente: novaLavagem.value.cliente || null
     }
 
+    if (unidadeId) {
+      payload.unidade = unidadeId
+    }
+
     await api.post('/api/lavagens/', payload)
     novaLavagem.value = {
-      unidade: 1,
       cliente: null,
       cliente_nome: '',
       placa: '',
