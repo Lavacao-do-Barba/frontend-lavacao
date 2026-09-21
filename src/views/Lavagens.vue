@@ -393,25 +393,27 @@ onMounted(async () => {
           <td>{{ l.forma_pagamento }}</td>
           <td>{{ new Date(l.horario_entrada).toLocaleString('pt-BR') }}</td>
           <td>{{ l.horario_saida ? new Date(l.horario_saida).toLocaleString('pt-BR') : '—' }}</td>
-          <td class="lavagens__acoes">
-            <button
-              v-if="!l.horario_saida"
-              class="lavagens__botao-finalizar"
-              :disabled="finalizando === l.id"
-              @click="finalizarLavagem(l.id, l.rampa)"
-            >
-              {{ finalizando === l.id ? 'Finalizando...' : 'Finalizar' }}
-            </button>
-            <button class="lavagens__botao-editar" @click="iniciarEdicao(l)">
-              Editar
-            </button>
-            <button
-              class="lavagens__botao-excluir"
-              :disabled="excluindo === l.id"
-              @click="excluirLavagem(l)"
-            >
-              {{ excluindo === l.id ? 'Excluindo...' : 'Excluir' }}
-            </button>
+          <td>
+            <div class="lavagens__acoes">
+              <button
+                v-if="!l.horario_saida"
+                class="lavagens__botao-finalizar"
+                :disabled="finalizando === l.id"
+                @click="finalizarLavagem(l.id, l.rampa)"
+              >
+                {{ finalizando === l.id ? 'Finalizando...' : 'Finalizar' }}
+              </button>
+              <button class="lavagens__botao-editar" @click="iniciarEdicao(l)">
+                Editar
+              </button>
+              <button
+                class="lavagens__botao-excluir"
+                :disabled="excluindo === l.id"
+                @click="excluirLavagem(l)"
+              >
+                {{ excluindo === l.id ? 'Excluindo...' : 'Excluir' }}
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -561,32 +563,37 @@ onMounted(async () => {
   background: var(--bg-secondary);
 }
 
+.lavagens__tabela td:last-child {
+  white-space: nowrap;
+  text-align: right;
+}
+
 .lavagens__acoes {
-  display: flex;
+  display: inline-flex;
   gap: 0.4rem;
-  flex-wrap: wrap;
+}
+
+.lavagens__botao-finalizar,
+.lavagens__botao-editar,
+.lavagens__botao-excluir {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  white-space: nowrap;
 }
 
 .lavagens__botao-finalizar {
-  padding: 0.4rem 0.9rem;
   background: var(--success);
   color: #0f1729;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .lavagens__botao-editar {
-  padding: 0.4rem 0.9rem;
   background: var(--bg-secondary);
   color: var(--accent-light);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .lavagens__botao-editar:hover {
@@ -594,14 +601,8 @@ onMounted(async () => {
 }
 
 .lavagens__botao-excluir {
-  padding: 0.4rem 0.9rem;
   background: rgba(248, 113, 113, 0.15);
   color: var(--danger);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .lavagens__botao-excluir:disabled {
