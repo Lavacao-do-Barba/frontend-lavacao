@@ -11,6 +11,9 @@ const carregando = ref(true)
 const erro = ref('')
 const salvando = ref(false)
 const finalizando = ref(null)
+const excluindo = ref(null)
+const editandoId = ref(null)
+const editandoLavagemOriginal = ref(null)
 
 const novaLavagem = ref({
   cliente: null,
@@ -25,17 +28,15 @@ const novaLavagem = ref({
   horario_entrada: '',
 })
 
-// Mapeia rampas em uso no momento (sem horário de saída)
 const rampasOcupadasIds = computed(() => {
   return lavagens.value
-    .filter(l => !l.horario_saida)
+    .filter(l => !l.horario_saida && l.id !== editandoId.value)
     .map(l => String(l.rampa))
 })
 
-// Mapeia funcionários ocupados no momento
 const funcionariosOcupadosIds = computed(() => {
   return lavagens.value
-    .filter(l => !l.horario_saida)
+    .filter(l => !l.horario_saida && l.id !== editandoId.value)
     .map(l => String(l.funcionario))
 })
 
@@ -43,6 +44,12 @@ function agoraParaInput() {
   const agora = new Date()
   agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset())
   return agora.toISOString().slice(0, 16)
+}
+
+function isoParaInput(iso) {
+  const data = new Date(iso)
+  data.setMinutes(data.getMinutes() - data.getTimezoneOffset())
+  return data.toISOString().slice(0, 16)
 }
 
 function preencherAgora() {
@@ -70,6 +77,45 @@ function aoSelecionarVeiculo() {
   }
 }
 
+function limparFormulario() {
+  novaLavagem.value = {
+    cliente: null,
+    cliente_nome: '',
+    placa: '',
+    veiculo: null,
+    rampa: '',
+    funcionario: '',
+    forma_pagamento: 'dinheiro',
+    valor: '',
+    observacao: '',
+    horario_entrada: '',
+  }
+  editandoId.value = null
+  editandoLavagemOriginal.value = null
+}
+
+function iniciarEdicao(lavagem) {
+  editandoId.value = lavagem.id
+  editandoLavagemOriginal.value = { ...lavagem }
+  novaLavagem.value = {
+    cliente: lavagem.cliente || null,
+    cliente_nome: lavagem.cliente_nome || '',
+    placa: lavagem.placa || '',
+    veiculo: lavagem.veiculo || null,
+    rampa: lavagem.rampa,
+    funcionario: lavagem.funcionario,
+    forma_pagamento: lavagem.forma_pagamento,
+    valor: lavagem.valor,
+    observacao: lavagem.observacao || '',
+    horario_entrada: isoParaInput(lavagem.horario_entrada),
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function cancelarEdicao() {
+  limparFormulario()
+}
+
 async function carregarDados() {
   const [resLavagens, resRampas, resFuncionarios, resVeiculos, resClientes] = await Promise.all([
     api.get('/api/lavagens/'),
@@ -89,7 +135,6 @@ async function cadastrarLavagem() {
   salvando.value = true
   erro.value = ''
 
-  // Validação Frontend: Impede o uso de Rampa ou Funcionário já em serviço
   if (rampasOcupadasIds.value.includes(String(novaLavagem.value.rampa))) {
     erro.value = 'Esta rampa já está em uso por outra lavagem em andamento.'
     salvando.value = false
@@ -123,32 +168,35 @@ async function cadastrarLavagem() {
       payload.unidade = unidadeId
     }
 
-    await api.post('/api/lavagens/', payload)
+    if (editandoId.value) {
+      await api.patch(`/api/lavagens/${editandoId.value}/`, payload)
 
-    // Atualiza status da rampa para Ocupada no backend (se houver o campo no modelo da API)
-    if (novaLavagem.value.rampa) {
-      try {
-        await api.patch(`/api/rampas/${novaLavagem.value.rampa}/`, { ocupada: true })
-      } catch (e) {
-        // Ignora caso o backend controle isso via signal/property
+      const rampaAntiga = editandoLavagemOriginal.value.rampa
+      const rampaNova = novaLavagem.value.rampa
+      const aindaEmAndamento = !editandoLavagemOriginal.value.horario_saida
+
+      if (aindaEmAndamento && String(rampaAntiga) !== String(rampaNova)) {
+        try {
+          await api.patch(`/api/rampas/${rampaAntiga}/`, { ocupada: false })
+        } catch (e) {}
+        try {
+          await api.patch(`/api/rampas/${rampaNova}/`, { ocupada: true })
+        } catch (e) {}
+      }
+    } else {
+      await api.post('/api/lavagens/', payload)
+
+      if (novaLavagem.value.rampa) {
+        try {
+          await api.patch(`/api/rampas/${novaLavagem.value.rampa}/`, { ocupada: true })
+        } catch (e) {}
       }
     }
 
-    novaLavagem.value = {
-      cliente: null,
-      cliente_nome: '',
-      placa: '',
-      veiculo: null,
-      rampa: '',
-      funcionario: '',
-      forma_pagamento: 'dinheiro',
-      valor: '',
-      observacao: '',
-      horario_entrada: '',
-    }
+    limparFormulario()
     await carregarDados()
   } catch (e) {
-    erro.value = e.response?.data ? JSON.stringify(e.response.data) : 'Não foi possível cadastrar a lavagem. Confira os dados.'
+    erro.value = e.response?.data ? JSON.stringify(e.response.data) : 'Não foi possível salvar a lavagem. Confira os dados.'
   } finally {
     salvando.value = false
   }
@@ -161,13 +209,10 @@ async function finalizarLavagem(id, rampaId) {
       horario_saida: new Date().toISOString(),
     })
 
-    // Libera a rampa no backend
     if (rampaId) {
       try {
         await api.patch(`/api/rampas/${rampaId}/`, { ocupada: false })
-      } catch (e) {
-        // Ignora erro se for calculado
-      }
+      } catch (e) {}
     }
 
     await carregarDados()
@@ -175,6 +220,34 @@ async function finalizarLavagem(id, rampaId) {
     erro.value = 'Não foi possível finalizar essa lavagem.'
   } finally {
     finalizando.value = null
+  }
+}
+
+async function excluirLavagem(lavagem) {
+  const confirmou = window.confirm(
+    `Tem certeza que deseja excluir a lavagem de ${lavagem.cliente_nome} (${lavagem.placa || 'sem placa'})?`
+  )
+  if (!confirmou) return
+
+  excluindo.value = lavagem.id
+  try {
+    await api.delete(`/api/lavagens/${lavagem.id}/`)
+
+    if (!lavagem.horario_saida && lavagem.rampa) {
+      try {
+        await api.patch(`/api/rampas/${lavagem.rampa}/`, { ocupada: false })
+      } catch (e) {}
+    }
+
+    if (editandoId.value === lavagem.id) {
+      limparFormulario()
+    }
+
+    await carregarDados()
+  } catch (e) {
+    erro.value = 'Não foi possível excluir essa lavagem.'
+  } finally {
+    excluindo.value = null
   }
 }
 
@@ -231,10 +304,10 @@ onMounted(async () => {
         <label>Rampa</label>
         <select v-model="novaLavagem.rampa" required>
           <option value="" disabled>Selecione</option>
-          <option 
-            v-for="r in rampas" 
-            :key="r.id" 
-            :value="r.id" 
+          <option
+            v-for="r in rampas"
+            :key="r.id"
+            :value="r.id"
             :disabled="rampasOcupadasIds.includes(String(r.id))"
           >
             {{ r.identificador }} {{ rampasOcupadasIds.includes(String(r.id)) ? '(Ocupada)' : '' }}
@@ -246,9 +319,9 @@ onMounted(async () => {
         <label>Funcionário</label>
         <select v-model="novaLavagem.funcionario" required>
           <option value="" disabled>Selecione</option>
-          <option 
-            v-for="f in funcionarios" 
-            :key="f.id" 
+          <option
+            v-for="f in funcionarios"
+            :key="f.id"
             :value="f.id"
             :disabled="funcionariosOcupadosIds.includes(String(f.id))"
           >
@@ -285,7 +358,11 @@ onMounted(async () => {
       </div>
 
       <button type="submit" :disabled="salvando">
-        {{ salvando ? 'Salvando...' : 'Registrar lavagem' }}
+        {{ salvando ? 'Salvando...' : (editandoId ? 'Salvar edição' : 'Registrar lavagem') }}
+      </button>
+
+      <button v-if="editandoId" type="button" class="lavagens__botao-cancelar" @click="cancelarEdicao">
+        Cancelar
       </button>
     </form>
 
@@ -316,7 +393,7 @@ onMounted(async () => {
           <td>{{ l.forma_pagamento }}</td>
           <td>{{ new Date(l.horario_entrada).toLocaleString('pt-BR') }}</td>
           <td>{{ l.horario_saida ? new Date(l.horario_saida).toLocaleString('pt-BR') : '—' }}</td>
-          <td>
+          <td class="lavagens__acoes">
             <button
               v-if="!l.horario_saida"
               class="lavagens__botao-finalizar"
@@ -324,6 +401,16 @@ onMounted(async () => {
               @click="finalizarLavagem(l.id, l.rampa)"
             >
               {{ finalizando === l.id ? 'Finalizando...' : 'Finalizar' }}
+            </button>
+            <button class="lavagens__botao-editar" @click="iniciarEdicao(l)">
+              Editar
+            </button>
+            <button
+              class="lavagens__botao-excluir"
+              :disabled="excluindo === l.id"
+              @click="excluirLavagem(l)"
+            >
+              {{ excluindo === l.id ? 'Excluindo...' : 'Excluir' }}
             </button>
           </td>
         </tr>
@@ -426,6 +513,17 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
+.lavagens__botao-cancelar {
+  padding: 0.65rem 1.25rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .lavagens__erro {
   color: var(--danger);
   margin-bottom: 1rem;
@@ -463,6 +561,12 @@ onMounted(async () => {
   background: var(--bg-secondary);
 }
 
+.lavagens__acoes {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .lavagens__botao-finalizar {
   padding: 0.4rem 0.9rem;
   background: var(--success);
@@ -472,5 +576,36 @@ onMounted(async () => {
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.lavagens__botao-editar {
+  padding: 0.4rem 0.9rem;
+  background: var(--bg-secondary);
+  color: var(--accent-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lavagens__botao-editar:hover {
+  border-color: var(--accent-light);
+}
+
+.lavagens__botao-excluir {
+  padding: 0.4rem 0.9rem;
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--danger);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lavagens__botao-excluir:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>
