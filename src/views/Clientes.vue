@@ -20,6 +20,11 @@ const salvandoEdicao = ref(false)
 const novoVeiculoDetalhe = ref({ placa: '', modelo: '' })
 const salvandoVeiculoDetalhe = ref(false)
 
+const veiculoEditandoId = ref(null)
+const veiculoEmEdicao = ref({ placa: '', modelo: '' })
+const salvandoVeiculoEdicao = ref(false)
+const excluindoVeiculoId = ref(null)
+
 const cliente = ref({
   codigo_pessoa: '',
   nome: '',
@@ -122,6 +127,7 @@ async function cadastrarCliente() {
 async function verDetalhes(c) {
   clienteSelecionado.value = c
   editando.value = false
+  veiculoEditandoId.value = null
   carregandoDetalhes.value = true
   historico.value = []
   novoVeiculoDetalhe.value = { placa: '', modelo: '' }
@@ -141,6 +147,7 @@ async function verDetalhes(c) {
 function fecharDetalhes() {
   clienteSelecionado.value = null
   editando.value = false
+  veiculoEditandoId.value = null
   historico.value = []
 }
 
@@ -185,6 +192,42 @@ async function adicionarVeiculoDetalhe() {
     erro.value = 'Não foi possível cadastrar esse veículo. Confira se a placa já existe.'
   } finally {
     salvandoVeiculoDetalhe.value = false
+  }
+}
+
+function iniciarEdicaoVeiculo(v) {
+  veiculoEditandoId.value = v.id
+  veiculoEmEdicao.value = { placa: v.placa, modelo: v.modelo || '' }
+}
+
+function cancelarEdicaoVeiculo() {
+  veiculoEditandoId.value = null
+}
+
+async function salvarEdicaoVeiculo(id) {
+  salvandoVeiculoEdicao.value = true
+  try {
+    const res = await api.patch(`/api/veiculos-cadastro/${id}/`, veiculoEmEdicao.value)
+    const idx = veiculos.value.findIndex(v => v.id === id)
+    if (idx !== -1) veiculos.value[idx] = res.data
+    veiculoEditandoId.value = null
+  } catch (e) {
+    erro.value = 'Não foi possível salvar o veículo. Confira se a placa já existe.'
+  } finally {
+    salvandoVeiculoEdicao.value = false
+  }
+}
+
+async function excluirVeiculo(id) {
+  if (!confirm('Excluir esse veículo? Essa ação não pode ser desfeita.')) return
+  excluindoVeiculoId.value = id
+  try {
+    await api.delete(`/api/veiculos-cadastro/${id}/`)
+    veiculos.value = veiculos.value.filter(v => v.id !== id)
+  } catch (e) {
+    erro.value = 'Não foi possível excluir esse veículo.'
+  } finally {
+    excluindoVeiculoId.value = null
   }
 }
 
@@ -335,15 +378,36 @@ onMounted(async () => {
             <tr>
               <th>Placa</th>
               <th>Modelo</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="v in veiculosDoCliente" :key="v.id">
-              <td>{{ v.placa }}</td>
-              <td>{{ v.modelo || '—' }}</td>
+              <template v-if="veiculoEditandoId === v.id">
+                <td><input v-model="veiculoEmEdicao.placa" class="input-inline" /></td>
+                <td><input v-model="veiculoEmEdicao.modelo" class="input-inline" /></td>
+                <td class="acoes-veiculo">
+                  <button class="btn-mini" :disabled="salvandoVeiculoEdicao" @click="salvarEdicaoVeiculo(v.id)">Salvar</button>
+                  <button class="btn-mini btn-mini--neutro" @click="cancelarEdicaoVeiculo">Cancelar</button>
+                </td>
+              </template>
+              <template v-else>
+                <td>{{ v.placa }}</td>
+                <td>{{ v.modelo || '—' }}</td>
+                <td class="acoes-veiculo">
+                  <button class="btn-mini" @click="iniciarEdicaoVeiculo(v)">Editar</button>
+                  <button
+                    class="btn-mini btn-mini--perigo"
+                    :disabled="excluindoVeiculoId === v.id"
+                    @click="excluirVeiculo(v.id)"
+                  >
+                    {{ excluindoVeiculoId === v.id ? 'Excluindo...' : 'Excluir' }}
+                  </button>
+                </td>
+              </template>
             </tr>
             <tr v-if="veiculosDoCliente.length === 0">
-              <td colspan="2" class="status">Nenhum veículo cadastrado para esse cliente.</td>
+              <td colspan="3" class="status">Nenhum veículo cadastrado para esse cliente.</td>
             </tr>
           </tbody>
         </table>
@@ -599,6 +663,43 @@ onMounted(async () => {
   font-size: 0.9rem;
   color: var(--accent-light);
   margin: 1.25rem 0 0.5rem;
+}
+.acoes-veiculo {
+  display: flex;
+  gap: 0.4rem;
+}
+.input-inline {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+}
+.btn-mini {
+  padding: 0.3rem 0.7rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn-mini--neutro {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+.btn-mini--perigo {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+.btn-mini:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .add-veiculo-row {
   display: flex;
