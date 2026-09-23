@@ -13,6 +13,10 @@ const clienteSelecionado = ref(null)
 const historico = ref([])
 const carregandoDetalhes = ref(false)
 
+const editando = ref(false)
+const clienteEmEdicao = ref(null)
+const salvandoEdicao = ref(false)
+
 const novoVeiculoDetalhe = ref({ placa: '', modelo: '' })
 const salvandoVeiculoDetalhe = ref(false)
 
@@ -50,7 +54,6 @@ const cliente = ref({
   nre: ''
 })
 
-// veículos digitados durante o cadastro do cliente, antes de salvar
 const veiculosNovoCliente = ref([{ placa: '', modelo: '' }])
 
 function adicionarLinhaVeiculo() {
@@ -118,6 +121,7 @@ async function cadastrarCliente() {
 
 async function verDetalhes(c) {
   clienteSelecionado.value = c
+  editando.value = false
   carregandoDetalhes.value = true
   historico.value = []
   novoVeiculoDetalhe.value = { placa: '', modelo: '' }
@@ -136,7 +140,34 @@ async function verDetalhes(c) {
 
 function fecharDetalhes() {
   clienteSelecionado.value = null
+  editando.value = false
   historico.value = []
+}
+
+function iniciarEdicao() {
+  clienteEmEdicao.value = { ...clienteSelecionado.value }
+  editando.value = true
+}
+
+function cancelarEdicao() {
+  editando.value = false
+  clienteEmEdicao.value = null
+}
+
+async function salvarEdicao() {
+  salvandoEdicao.value = true
+  erro.value = ''
+  try {
+    const res = await api.patch(`/api/clientes/${clienteSelecionado.value.id}/`, clienteEmEdicao.value)
+    clienteSelecionado.value = res.data
+    const idx = clientes.value.findIndex(c => c.id === res.data.id)
+    if (idx !== -1) clientes.value[idx] = res.data
+    editando.value = false
+  } catch (e) {
+    erro.value = 'Não foi possível salvar as alterações. Confira os dados.'
+  } finally {
+    salvandoEdicao.value = false
+  }
 }
 
 async function adicionarVeiculoDetalhe() {
@@ -212,10 +243,78 @@ onMounted(async () => {
     <section v-if="clienteSelecionado" class="section">
       <div class="lista-header">
         <legend>Detalhes de {{ clienteSelecionado.nome }}</legend>
-        <button class="btn-fechar" @click="fecharDetalhes">Fechar</button>
+        <div class="header-botoes">
+          <button v-if="!editando" class="btn-historico" @click="iniciarEdicao">Editar</button>
+          <button class="btn-fechar" @click="fecharDetalhes">Fechar</button>
+        </div>
       </div>
 
       <p v-if="carregandoDetalhes" class="status">Carregando...</p>
+
+      <template v-else-if="editando">
+        <div class="form-grid">
+          <div class="field-group span-2">
+            <label>Nome do Cliente:</label>
+            <input v-model="clienteEmEdicao.nome" autocomplete="off" />
+          </div>
+          <div class="field-group span-2">
+            <label>Nome Fantasia:</label>
+            <input v-model="clienteEmEdicao.nome_fantasia" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>CPF ou CNPJ:</label>
+            <input v-model="clienteEmEdicao.cpf_cnpj" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>RG ou Inscrição Estadual:</label>
+            <input v-model="clienteEmEdicao.ie_rg" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>CEP:</label>
+            <input v-model="clienteEmEdicao.cep" autocomplete="off" />
+          </div>
+          <div class="field-group span-2">
+            <label>Rua / Avenida:</label>
+            <input v-model="clienteEmEdicao.logradouro" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>Bairro:</label>
+            <input v-model="clienteEmEdicao.bairro" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>Cidade:</label>
+            <input v-model="clienteEmEdicao.cidade" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>Estado (sigla):</label>
+            <input v-model="clienteEmEdicao.uf" maxlength="2" class="short" autocomplete="off" style="text-transform: uppercase" />
+          </div>
+          <div class="field-group">
+            <label>Telefone:</label>
+            <input v-model="clienteEmEdicao.telefone" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>Celular:</label>
+            <input v-model="clienteEmEdicao.celular" autocomplete="off" />
+          </div>
+          <div class="field-group span-2">
+            <label>Email:</label>
+            <input v-model="clienteEmEdicao.email" type="email" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="clienteEmEdicao.cadastro_ativo" /> Cliente Ativo
+            </label>
+          </div>
+        </div>
+
+        <div class="edicao-botoes">
+          <button class="btn-fechar" @click="cancelarEdicao" :disabled="salvandoEdicao">Cancelar</button>
+          <button class="btn-save" @click="salvarEdicao" :disabled="salvandoEdicao">
+            {{ salvandoEdicao ? 'Salvando...' : 'Salvar Alterações' }}
+          </button>
+        </div>
+      </template>
 
       <template v-else>
         <div class="detalhes-grid">
@@ -436,6 +535,10 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 1rem;
 }
+.header-botoes {
+  display: flex;
+  gap: 0.5rem;
+}
 .input-busca {
   padding: 0.5rem 0.75rem;
   background: var(--bg-secondary);
@@ -558,6 +661,12 @@ onMounted(async () => {
   font-weight: 600;
   margin-top: 0.3rem;
 }
+.edicao-botoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -579,6 +688,7 @@ onMounted(async () => {
   outline: none;
   border-color: var(--accent);
 }
+.checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 .row { display: flex; gap: 0.5rem; }
 .short { width: 100px; }
 .full { flex: 1; }
@@ -588,7 +698,6 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
 }
-.checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 .btn-save {
   padding: 0.75rem 2rem;
   background: var(--accent);
