@@ -9,13 +9,10 @@ const links = [
   { nome: 'Clientes', rota: '/clientes', icone: '👤' },
   { nome: 'Lista de Preços', rota: '/tabela-precos', icone: '🏷️' },
   { nome: 'Funcionários', rota: '/funcionarios', icone: '👥' },
-  { nome: 'Rampas', rota: '/rampas', icone: '🏗️' },
-  { nome: 'Presença', rota: '/presenca', icone: '🗓️' },
   { nome: 'Relatórios', rota: '/relatorios', icone: '📈' },
   { nome: 'Veículos', rota: '/veiculos', icone: '🚚' },
   { nome: 'Pagamentos', rota: '/pagamentos', icone: '💳' },
 ]
-
 const router = useRouter()
 
 function handleLogout() {

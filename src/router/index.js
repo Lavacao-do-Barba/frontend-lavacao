@@ -6,8 +6,6 @@ import Relatorios from '../views/Relatorios.vue'
 import Veiculos from '../views/Veiculos.vue'
 import Pagamentos from '../views/Pagamentos.vue'
 import Funcionarios from '../views/Funcionarios.vue'
-import Rampas from '../views/Rampas.vue'
-import Presenca from '../views/Presenca.vue'
 import TabelaPrecos from '../views/TabelaPrecos.vue'
 import Clientes from '../views/Clientes.vue'
 import { isAuthenticated } from '../services/auth'
@@ -22,8 +20,6 @@ const routes = [
   { path: '/veiculos', name: 'veiculos', component: Veiculos, meta: { requiresAuth: true } },
   { path: '/pagamentos', name: 'pagamentos', component: Pagamentos, meta: { requiresAuth: true } },
   { path: '/funcionarios', name: 'funcionarios', component: Funcionarios, meta: { requiresAuth: true } },
-  { path: '/rampas', name: 'rampas', component: Rampas, meta: { requiresAuth: true } },
-  { path: '/presenca', name: 'presenca', component: Presenca, meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({
