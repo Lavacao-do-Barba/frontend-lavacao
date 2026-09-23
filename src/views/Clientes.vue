@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 
 const clientes = ref([])
+const veiculos = ref([])
 const carregando = ref(true)
 const salvando = ref(false)
 const erro = ref('')
@@ -10,7 +11,7 @@ const filtro = ref('')
 
 const clienteSelecionado = ref(null)
 const historico = ref([])
-const carregandoHistorico = ref(false)
+const carregandoDetalhes = ref(false)
 
 const cliente = ref({
   codigo_pessoa: '',
@@ -56,9 +57,19 @@ const clientesFiltrados = computed(() => {
   )
 })
 
+const veiculosDoCliente = computed(() => {
+  if (!clienteSelecionado.value) return []
+  return veiculos.value.filter(v => v.cliente === clienteSelecionado.value.id)
+})
+
 async function carregarClientes() {
   const res = await api.get('/api/clientes/')
   clientes.value = res.data.results || res.data
+}
+
+async function carregarVeiculos() {
+  const res = await api.get('/api/veiculos-cadastro/')
+  veiculos.value = res.data.results || res.data
 }
 
 async function cadastrarCliente() {
@@ -74,21 +85,24 @@ async function cadastrarCliente() {
   }
 }
 
-async function verHistorico(c) {
+async function verDetalhes(c) {
   clienteSelecionado.value = c
-  carregandoHistorico.value = true
+  carregandoDetalhes.value = true
   historico.value = []
   try {
-    const res = await api.get('/api/lavagens/', { params: { cliente: c.id } })
-    historico.value = res.data.results || res.data
+    const [resHistorico, resVeiculos] = await Promise.all([
+      api.get('/api/lavagens/', { params: { cliente: c.id } }),
+      veiculos.value.length ? Promise.resolve(null) : carregarVeiculos(),
+    ])
+    historico.value = resHistorico.data.results || resHistorico.data
   } catch (e) {
-    erro.value = 'Não foi possível carregar o histórico desse cliente.'
+    erro.value = 'Não foi possível carregar os detalhes desse cliente.'
   } finally {
-    carregandoHistorico.value = false
+    carregandoDetalhes.value = false
   }
 }
 
-function fecharHistorico() {
+function fecharDetalhes() {
   clienteSelecionado.value = null
   historico.value = []
 }
@@ -135,7 +149,7 @@ onMounted(async () => {
             <td>{{ c.telefone || c.celular || '—' }}</td>
             <td>{{ c.cadastro_ativo ? 'Sim' : 'Não' }}</td>
             <td>
-              <button class="btn-historico" @click="verHistorico(c)">Ver histórico</button>
+              <button class="btn-historico" @click="verDetalhes(c)">Ver detalhes</button>
             </td>
           </tr>
           <tr v-if="clientesFiltrados.length === 0">
@@ -147,34 +161,69 @@ onMounted(async () => {
 
     <section v-if="clienteSelecionado" class="section">
       <div class="lista-header">
-        <legend>Histórico de {{ clienteSelecionado.nome }}</legend>
-        <button class="btn-fechar" @click="fecharHistorico">Fechar</button>
+        <legend>Detalhes de {{ clienteSelecionado.nome }}</legend>
+        <button class="btn-fechar" @click="fecharDetalhes">Fechar</button>
       </div>
 
-      <p v-if="carregandoHistorico" class="status">Carregando histórico...</p>
-      <table v-else class="tabela">
-        <thead>
-          <tr>
-            <th>Placa</th>
-            <th>Valor</th>
-            <th>Pagamento</th>
-            <th>Entrada</th>
-            <th>Saída</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="l in historico" :key="l.id">
-            <td>{{ l.placa || l.veiculo_placa || '—' }}</td>
-            <td>R$ {{ Number(l.valor).toFixed(2) }}</td>
-            <td>{{ l.forma_pagamento }}</td>
-            <td>{{ new Date(l.horario_entrada).toLocaleString('pt-BR') }}</td>
-            <td>{{ l.horario_saida ? new Date(l.horario_saida).toLocaleString('pt-BR') : '—' }}</td>
-          </tr>
-          <tr v-if="historico.length === 0">
-            <td colspan="5" class="status">Esse cliente ainda não tem lavagens registradas.</td>
-          </tr>
-        </tbody>
-      </table>
+      <p v-if="carregandoDetalhes" class="status">Carregando...</p>
+
+      <template v-else>
+        <div class="detalhes-grid">
+          <div><span class="detalhes-label">Nome Fantasia</span>{{ clienteSelecionado.nome_fantasia || '—' }}</div>
+          <div><span class="detalhes-label">CPF/CNPJ</span>{{ clienteSelecionado.cpf_cnpj || '—' }}</div>
+          <div><span class="detalhes-label">RG/IE</span>{{ clienteSelecionado.ie_rg || '—' }}</div>
+          <div><span class="detalhes-label">Tipo</span>{{ clienteSelecionado.natureza === 'Fisica' ? 'Pessoa Física' : 'Pessoa Jurídica' }}</div>
+          <div><span class="detalhes-label">Endereço</span>{{ clienteSelecionado.logradouro || '—' }}, {{ clienteSelecionado.bairro || '—' }}, {{ clienteSelecionado.cidade || '—' }}/{{ clienteSelecionado.uf || '—' }}</div>
+          <div><span class="detalhes-label">CEP</span>{{ clienteSelecionado.cep || '—' }}</div>
+          <div><span class="detalhes-label">Telefone</span>{{ clienteSelecionado.telefone || '—' }}</div>
+          <div><span class="detalhes-label">Celular</span>{{ clienteSelecionado.celular || '—' }}</div>
+          <div><span class="detalhes-label">Email</span>{{ clienteSelecionado.email || '—' }}</div>
+        </div>
+
+        <h3 class="subtitulo">Veículos</h3>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>Placa</th>
+              <th>Modelo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="v in veiculosDoCliente" :key="v.id">
+              <td>{{ v.placa }}</td>
+              <td>{{ v.modelo || '—' }}</td>
+            </tr>
+            <tr v-if="veiculosDoCliente.length === 0">
+              <td colspan="2" class="status">Nenhum veículo cadastrado para esse cliente.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="subtitulo">Histórico de Lavagens</h3>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>Placa</th>
+              <th>Valor</th>
+              <th>Pagamento</th>
+              <th>Entrada</th>
+              <th>Saída</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="l in historico" :key="l.id">
+              <td>{{ l.placa || l.veiculo_placa || '—' }}</td>
+              <td>R$ {{ Number(l.valor).toFixed(2) }}</td>
+              <td>{{ l.forma_pagamento }}</td>
+              <td>{{ new Date(l.horario_entrada).toLocaleString('pt-BR') }}</td>
+              <td>{{ l.horario_saida ? new Date(l.horario_saida).toLocaleString('pt-BR') : '—' }}</td>
+            </tr>
+            <tr v-if="historico.length === 0">
+              <td colspan="5" class="status">Esse cliente ainda não tem lavagens registradas.</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </section>
 
     <h1>Cadastro de Cliente</h1>
@@ -353,6 +402,28 @@ onMounted(async () => {
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
+}
+.detalhes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+.detalhes-grid > div:has(.detalhes-label:contains("Endereço")) {
+  grid-column: span 2;
+}
+.detalhes-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+}
+.subtitulo {
+  font-size: 0.9rem;
+  color: var(--accent-light);
+  margin: 1.25rem 0 0.5rem;
 }
 .form-grid {
   display: grid;

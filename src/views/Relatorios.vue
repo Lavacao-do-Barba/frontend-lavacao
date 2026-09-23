@@ -48,10 +48,6 @@ onMounted(carregarResultados)
           <th>Lavagens</th>
           <th>Metas batidas</th>
           <th>Bônus metas</th>
-          <th>Faltas</th>
-          <th>Atrasos</th>
-          <th>Prêmio presença</th>
-          <th>Total adicional</th>
         </tr>
       </thead>
       <tbody>
@@ -60,13 +56,9 @@ onMounted(carregarResultados)
           <td>{{ r.total_lavagens }}</td>
           <td>{{ r.metas_batidas }}</td>
           <td>R$ {{ Number(r.bonus_metas).toFixed(2) }}</td>
-          <td>{{ r.total_faltas }}</td>
-          <td>{{ r.total_atrasos }}</td>
-          <td>R$ {{ Number(r.premio_presenca).toFixed(2) }}</td>
-          <td>R$ {{ Number(r.total_adicional).toFixed(2) }}</td>
         </tr>
         <tr v-if="resultados.length === 0">
-          <td colspan="8" class="relatorios__vazio">Nenhum resultado nesse mês.</td>
+          <td colspan="4" class="relatorios__vazio">Nenhum resultado nesse mês.</td>
         </tr>
       </tbody>
     </table>
