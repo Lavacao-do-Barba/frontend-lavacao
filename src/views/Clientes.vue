@@ -13,6 +13,9 @@ const clienteSelecionado = ref(null)
 const historico = ref([])
 const carregandoDetalhes = ref(false)
 
+const novoVeiculoDetalhe = ref({ placa: '', modelo: '' })
+const salvandoVeiculoDetalhe = ref(false)
+
 const cliente = ref({
   codigo_pessoa: '',
   nome: '',
@@ -47,6 +50,17 @@ const cliente = ref({
   nre: ''
 })
 
+// veículos digitados durante o cadastro do cliente, antes de salvar
+const veiculosNovoCliente = ref([{ placa: '', modelo: '' }])
+
+function adicionarLinhaVeiculo() {
+  veiculosNovoCliente.value.push({ placa: '', modelo: '' })
+}
+
+function removerLinhaVeiculo(index) {
+  veiculosNovoCliente.value.splice(index, 1)
+}
+
 const clientesFiltrados = computed(() => {
   if (!filtro.value) return clientes.value
   const termo = filtro.value.toLowerCase()
@@ -74,10 +88,27 @@ async function carregarVeiculos() {
 
 async function cadastrarCliente() {
   salvando.value = true
+  erro.value = ''
   try {
-    await api.post('/api/clientes/', cliente.value)
+    const resCliente = await api.post('/api/clientes/', cliente.value)
+    const novoClienteId = resCliente.data.id
+
+    const veiculosValidos = veiculosNovoCliente.value.filter(v => v.placa.trim() !== '')
+    for (const v of veiculosValidos) {
+      try {
+        await api.post('/api/veiculos-cadastro/', {
+          placa: v.placa,
+          modelo: v.modelo,
+          cliente: novoClienteId,
+        })
+      } catch (e) {
+        erro.value = `Cliente salvo, mas não foi possível cadastrar o veículo ${v.placa}. Confira se a placa já existe.`
+      }
+    }
+
     alert('Cliente salvo com sucesso!')
-    await carregarClientes()
+    veiculosNovoCliente.value = [{ placa: '', modelo: '' }]
+    await Promise.all([carregarClientes(), carregarVeiculos()])
   } catch (e) {
     erro.value = 'Erro ao cadastrar cliente.'
   } finally {
@@ -89,8 +120,9 @@ async function verDetalhes(c) {
   clienteSelecionado.value = c
   carregandoDetalhes.value = true
   historico.value = []
+  novoVeiculoDetalhe.value = { placa: '', modelo: '' }
   try {
-    const [resHistorico, resVeiculos] = await Promise.all([
+    const [resHistorico] = await Promise.all([
       api.get('/api/lavagens/', { params: { cliente: c.id } }),
       veiculos.value.length ? Promise.resolve(null) : carregarVeiculos(),
     ])
@@ -105,6 +137,24 @@ async function verDetalhes(c) {
 function fecharDetalhes() {
   clienteSelecionado.value = null
   historico.value = []
+}
+
+async function adicionarVeiculoDetalhe() {
+  if (!novoVeiculoDetalhe.value.placa.trim()) return
+  salvandoVeiculoDetalhe.value = true
+  try {
+    const res = await api.post('/api/veiculos-cadastro/', {
+      placa: novoVeiculoDetalhe.value.placa,
+      modelo: novoVeiculoDetalhe.value.modelo,
+      cliente: clienteSelecionado.value.id,
+    })
+    veiculos.value.push(res.data)
+    novoVeiculoDetalhe.value = { placa: '', modelo: '' }
+  } catch (e) {
+    erro.value = 'Não foi possível cadastrar esse veículo. Confira se a placa já existe.'
+  } finally {
+    salvandoVeiculoDetalhe.value = false
+  }
 }
 
 onMounted(async () => {
@@ -173,7 +223,7 @@ onMounted(async () => {
           <div><span class="detalhes-label">CPF/CNPJ</span>{{ clienteSelecionado.cpf_cnpj || '—' }}</div>
           <div><span class="detalhes-label">RG/IE</span>{{ clienteSelecionado.ie_rg || '—' }}</div>
           <div><span class="detalhes-label">Tipo</span>{{ clienteSelecionado.natureza === 'Fisica' ? 'Pessoa Física' : 'Pessoa Jurídica' }}</div>
-          <div><span class="detalhes-label">Endereço</span>{{ clienteSelecionado.logradouro || '—' }}, {{ clienteSelecionado.bairro || '—' }}, {{ clienteSelecionado.cidade || '—' }}/{{ clienteSelecionado.uf || '—' }}</div>
+          <div class="detalhes-full"><span class="detalhes-label">Endereço</span>{{ clienteSelecionado.logradouro || '—' }}, {{ clienteSelecionado.bairro || '—' }}, {{ clienteSelecionado.cidade || '—' }}/{{ clienteSelecionado.uf || '—' }}</div>
           <div><span class="detalhes-label">CEP</span>{{ clienteSelecionado.cep || '—' }}</div>
           <div><span class="detalhes-label">Telefone</span>{{ clienteSelecionado.telefone || '—' }}</div>
           <div><span class="detalhes-label">Celular</span>{{ clienteSelecionado.celular || '—' }}</div>
@@ -198,6 +248,14 @@ onMounted(async () => {
             </tr>
           </tbody>
         </table>
+
+        <div class="add-veiculo-row">
+          <input v-model="novoVeiculoDetalhe.placa" placeholder="Placa (ABC1D23)" class="input-placa" />
+          <input v-model="novoVeiculoDetalhe.modelo" placeholder="Modelo (opcional)" class="input-modelo" />
+          <button class="btn-add-veiculo" :disabled="salvandoVeiculoDetalhe" @click="adicionarVeiculoDetalhe">
+            {{ salvandoVeiculoDetalhe ? 'Salvando...' : '+ Adicionar veículo' }}
+          </button>
+        </div>
 
         <h3 class="subtitulo">Histórico de Lavagens</h3>
         <table class="tabela">
@@ -315,6 +373,18 @@ onMounted(async () => {
         </div>
       </fieldset>
 
+      <fieldset class="section">
+        <legend>Veículos</legend>
+        <div v-for="(v, index) in veiculosNovoCliente" :key="index" class="veiculo-row">
+          <input v-model="v.placa" placeholder="Placa (ABC1D23)" class="input-placa" autocomplete="off" />
+          <input v-model="v.modelo" placeholder="Modelo (opcional)" class="input-modelo" autocomplete="off" />
+          <button type="button" class="btn-remover-veiculo" @click="removerLinhaVeiculo(index)" v-if="veiculosNovoCliente.length > 1">
+            ✕
+          </button>
+        </div>
+        <button type="button" class="btn-add-linha" @click="adicionarLinhaVeiculo">+ Adicionar outro veículo</button>
+      </fieldset>
+
       <div class="footer-row">
         <label class="checkbox-label">
           <input type="checkbox" v-model="cliente.cadastro_ativo" /> Cliente Ativo
@@ -323,6 +393,8 @@ onMounted(async () => {
           {{ salvando ? 'Salvando...' : 'Salvar Cadastro' }}
         </button>
       </div>
+
+      <p v-if="erro" class="erro-msg">{{ erro }}</p>
     </form>
   </div>
 </template>
@@ -410,7 +482,7 @@ onMounted(async () => {
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
 }
-.detalhes-grid > div:has(.detalhes-label:contains("Endereço")) {
+.detalhes-full {
   grid-column: span 2;
 }
 .detalhes-label {
@@ -424,6 +496,67 @@ onMounted(async () => {
   font-size: 0.9rem;
   color: var(--accent-light);
   margin: 1.25rem 0 0.5rem;
+}
+.add-veiculo-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.input-placa {
+  width: 160px;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+}
+.input-modelo {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+}
+.btn-add-veiculo {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.btn-add-veiculo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.veiculo-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+.btn-remover-veiculo {
+  padding: 0 0.9rem;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-add-linha {
+  padding: 0.4rem 0.9rem;
+  background: var(--bg-secondary);
+  color: var(--accent-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.3rem;
 }
 .form-grid {
   display: grid;
@@ -468,4 +601,8 @@ onMounted(async () => {
 }
 .btn-save:hover:not(:disabled) { opacity: 0.9; }
 .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.erro-msg {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
 </style>
