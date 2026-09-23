@@ -1,6 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
+import { useToast } from '../composables/useToast'
+import { useConfirm } from '../composables/useConfirm'
+
+const toast = useToast()
+const { confirmar } = useConfirm()
 
 const clientes = ref([])
 const veiculos = ref([])
@@ -12,6 +17,7 @@ const filtro = ref('')
 const clienteSelecionado = ref(null)
 const historico = ref([])
 const carregandoDetalhes = ref(false)
+const excluindoCliente = ref(false)
 
 const editando = ref(false)
 const clienteEmEdicao = ref(null)
@@ -110,11 +116,11 @@ async function cadastrarCliente() {
           cliente: novoClienteId,
         })
       } catch (e) {
-        erro.value = `Cliente salvo, mas não foi possível cadastrar o veículo ${v.placa}. Confira se a placa já existe.`
+        toast.error(`Cliente salvo, mas não foi possível cadastrar o veículo ${v.placa}. Confira se a placa já existe.`)
       }
     }
 
-    alert('Cliente salvo com sucesso!')
+    toast.success('Cliente salvo com sucesso!')
     veiculosNovoCliente.value = [{ placa: '', modelo: '' }]
     await Promise.all([carregarClientes(), carregarVeiculos()])
   } catch (e) {
@@ -138,7 +144,7 @@ async function verDetalhes(c) {
     ])
     historico.value = resHistorico.data.results || resHistorico.data
   } catch (e) {
-    erro.value = 'Não foi possível carregar os detalhes desse cliente.'
+    toast.error('Não foi possível carregar os detalhes desse cliente.')
   } finally {
     carregandoDetalhes.value = false
   }
@@ -163,17 +169,37 @@ function cancelarEdicao() {
 
 async function salvarEdicao() {
   salvandoEdicao.value = true
-  erro.value = ''
   try {
     const res = await api.patch(`/api/clientes/${clienteSelecionado.value.id}/`, clienteEmEdicao.value)
     clienteSelecionado.value = res.data
     const idx = clientes.value.findIndex(c => c.id === res.data.id)
     if (idx !== -1) clientes.value[idx] = res.data
     editando.value = false
+    toast.success('Alterações salvas.')
   } catch (e) {
-    erro.value = 'Não foi possível salvar as alterações. Confira os dados.'
+    toast.error('Não foi possível salvar as alterações. Confira os dados.')
   } finally {
     salvandoEdicao.value = false
+  }
+}
+
+async function excluirCliente() {
+  const ok = await confirmar(
+    'Excluir cliente',
+    `Tem certeza que deseja excluir ${clienteSelecionado.value.nome}? Os veículos e lavagens dele continuam no sistema, só deixam de estar vinculados a esse cliente.`
+  )
+  if (!ok) return
+
+  excluindoCliente.value = true
+  try {
+    await api.delete(`/api/clientes/${clienteSelecionado.value.id}/`)
+    clientes.value = clientes.value.filter(c => c.id !== clienteSelecionado.value.id)
+    toast.success('Cliente excluído.')
+    fecharDetalhes()
+  } catch (e) {
+    toast.error('Não foi possível excluir esse cliente.')
+  } finally {
+    excluindoCliente.value = false
   }
 }
 
@@ -188,8 +214,9 @@ async function adicionarVeiculoDetalhe() {
     })
     veiculos.value.push(res.data)
     novoVeiculoDetalhe.value = { placa: '', modelo: '' }
+    toast.success('Veículo adicionado.')
   } catch (e) {
-    erro.value = 'Não foi possível cadastrar esse veículo. Confira se a placa já existe.'
+    toast.error('Não foi possível cadastrar esse veículo. Confira se a placa já existe.')
   } finally {
     salvandoVeiculoDetalhe.value = false
   }
@@ -211,21 +238,25 @@ async function salvarEdicaoVeiculo(id) {
     const idx = veiculos.value.findIndex(v => v.id === id)
     if (idx !== -1) veiculos.value[idx] = res.data
     veiculoEditandoId.value = null
+    toast.success('Veículo atualizado.')
   } catch (e) {
-    erro.value = 'Não foi possível salvar o veículo. Confira se a placa já existe.'
+    toast.error('Não foi possível salvar o veículo. Confira se a placa já existe.')
   } finally {
     salvandoVeiculoEdicao.value = false
   }
 }
 
 async function excluirVeiculo(id) {
-  if (!confirm('Excluir esse veículo? Essa ação não pode ser desfeita.')) return
+  const ok = await confirmar('Excluir veículo', 'Essa ação não pode ser desfeita.')
+  if (!ok) return
+
   excluindoVeiculoId.value = id
   try {
     await api.delete(`/api/veiculos-cadastro/${id}/`)
     veiculos.value = veiculos.value.filter(v => v.id !== id)
+    toast.success('Veículo excluído.')
   } catch (e) {
-    erro.value = 'Não foi possível excluir esse veículo.'
+    toast.error('Não foi possível excluir esse veículo.')
   } finally {
     excluindoVeiculoId.value = null
   }
@@ -288,6 +319,14 @@ onMounted(async () => {
         <legend>Detalhes de {{ clienteSelecionado.nome }}</legend>
         <div class="header-botoes">
           <button v-if="!editando" class="btn-historico" @click="iniciarEdicao">Editar</button>
+          <button
+            v-if="!editando"
+            class="btn-perigo-outline"
+            :disabled="excluindoCliente"
+            @click="excluirCliente"
+          >
+            {{ excluindoCliente ? 'Excluindo...' : 'Excluir Cliente' }}
+          </button>
           <button class="btn-fechar" @click="fecharDetalhes">Fechar</button>
         </div>
       </div>
@@ -815,4 +854,15 @@ onMounted(async () => {
   color: var(--danger);
   font-size: 0.85rem;
 }
+.btn-perigo-outline {
+  padding: 0.4rem 0.9rem;
+  background: transparent;
+  color: var(--danger, #e74c3c);
+  border: 1px solid var(--danger, #e74c3c);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.btn-perigo-outline:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
