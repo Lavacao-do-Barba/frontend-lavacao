@@ -12,18 +12,23 @@ defineProps({
     <table class="tabela-funcionarios">
       <thead>
         <tr>
+          <th>#</th>
           <th>Funcionário</th>
           <th>Lavagens</th>
           <th>Metas batidas</th>
-          <th>Bônus total</th>
+          <th>Bônus</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="f in funcionarios" :key="f.funcionario">
+        <tr v-for="(f, i) in funcionarios" :key="f.funcionario">
+          <td>{{ i + 1 }}º</td>
           <td>{{ f.funcionario }}</td>
           <td>{{ f.total_lavagens }}</td>
           <td>{{ f.metas_batidas }}</td>
-          <td>R$ {{ f.total_adicional.toFixed(2) }}</td>
+          <td>R$ {{ Number(f.bonus_metas).toFixed(2) }}</td>
+        </tr>
+        <tr v-if="funcionarios.length === 0">
+          <td colspan="5" class="tabela-vazio">Nenhum resultado nesse mês.</td>
         </tr>
       </tbody>
     </table>
@@ -65,5 +70,11 @@ defineProps({
 
 .tabela-funcionarios tbody tr:hover {
   background: var(--bg-secondary);
+}
+
+.tabela-vazio {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 1.5rem;
 }
 </style>
