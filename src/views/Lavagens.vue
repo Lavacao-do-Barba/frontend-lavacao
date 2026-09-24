@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
+import { useConfirm } from '../composables/useConfirm'
+
+const { confirmar } = useConfirm()
 
 const lavagens = ref([])
 const rampas = ref([])
@@ -224,7 +227,7 @@ async function finalizarLavagem(id, rampaId) {
 }
 
 async function excluirLavagem(lavagem) {
-  const confirmou = window.confirm(
+  const confirmou = await confirmar('Excluir lavagem',
     `Tem certeza que deseja excluir a lavagem de ${lavagem.cliente_nome} (${lavagem.placa || 'sem placa'})?`
   )
   if (!confirmou) return
