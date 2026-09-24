@@ -26,7 +26,7 @@ const precosFiltrados = computed(() => {
   return precos.value.filter(p => normalizar(p.categoria_caminhao).includes(termo))
 })
 
-// Busca todas as páginas da API (a paginação devolve só 10 por vez)
+// A API usa total_pages, não next, para indicar as páginas restantes.
 async function carregarPrecos() {
   let pagina = 1
   let todos = []
@@ -36,8 +36,8 @@ async function carregarPrecos() {
       todos = res.data
       break
     }
-    todos = todos.concat(res.data.results)
-    if (!res.data.next) break
+    todos = todos.concat(res.data.results || [])
+    if (pagina >= Number(res.data.total_pages || 1)) break
     pagina++
   }
   precos.value = todos
