@@ -1,26 +1,38 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import api from '../services/api'
 
 const busca = ref('')
 const historico = ref([])
 const carregando = ref(false)
+const erro = ref('')
+let buscaAtual = 0
 
 async function buscarHistorico() {
-  if (!busca.value) {
+  const termo = busca.value.trim()
+  const requisicao = ++buscaAtual
+  if (!termo) {
     historico.value = []
+    carregando.value = false
+    erro.value = ''
     return
   }
   carregando.value = true
   try {
     const res = await api.get('/api/lavagens/', {
-      params: { busca: busca.value }
+      params: { busca: termo }
     })
-    historico.value = res.data.results || res.data
+    if (requisicao === buscaAtual) {
+      historico.value = res.data.results || res.data
+      erro.value = ''
+    }
   } catch (e) {
-    console.error('Erro ao buscar histórico:', e)
+    if (requisicao === buscaAtual) {
+      historico.value = []
+      erro.value = 'Erro ao buscar veículos.'
+    }
   } finally {
-    carregando.value = false
+    if (requisicao === buscaAtual) carregando.value = false
   }
 }
 </script>
@@ -42,6 +54,7 @@ async function buscarHistorico() {
     </div>
 
     <p v-if="carregando" class="veiculos__status">Buscando...</p>
+    <p v-else-if="erro" class="veiculos__status">{{ erro }}</p>
 
     <table v-else-if="historico.length" class="veiculos__tabela">
       <thead>
