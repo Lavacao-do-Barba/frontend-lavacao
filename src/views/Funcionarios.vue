@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../services/api'
+import { useConfirm } from '../composables/useConfirm'
+
+const { confirmar } = useConfirm()
 
 const funcionarios = ref([])
 const carregando = ref(true)
@@ -65,7 +68,7 @@ async function cadastrarFuncionario() {
 }
 
 async function excluirFuncionario(funcionario) {
-  const confirmou = window.confirm(`Tem certeza que deseja excluir ${funcionario.nome}?`)
+  const confirmou = await confirmar('Excluir funcionário', `Tem certeza que deseja excluir ${funcionario.nome}?`)
   if (!confirmou) return
 
   excluindo.value = funcionario.id

@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
+import { useConfirm } from '../composables/useConfirm'
+
+const { confirmar } = useConfirm()
 
 const precos = ref([])
 const carregando = ref(true)
@@ -58,7 +61,7 @@ async function salvarPreco() {
 }
 
 async function deletarPreco(id) {
-  if (!confirm('Deseja excluir este item?')) return
+  if (!await confirmar('Excluir preço', 'Deseja excluir este item?')) return
   try {
     await api.delete(`/api/tabela-precos/${id}/`)
     await carregarPrecos()
