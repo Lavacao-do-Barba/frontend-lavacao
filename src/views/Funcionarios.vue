@@ -14,7 +14,6 @@ const novoFuncionario = ref({
   tipo_contrato: 'clt',
   salario_base: '',
   data_contratacao: '',
-  ativo: true,
 })
 
 async function carregarFuncionarios() {
@@ -28,7 +27,6 @@ function limparFormulario() {
     tipo_contrato: 'clt',
     salario_base: '',
     data_contratacao: '',
-    ativo: true,
   }
   editandoId.value = null
 }
@@ -40,7 +38,6 @@ function iniciarEdicao(funcionario) {
     tipo_contrato: funcionario.tipo_contrato,
     salario_base: funcionario.salario_base,
     data_contratacao: funcionario.data_contratacao,
-    ativo: funcionario.ativo,
   }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -64,15 +61,6 @@ async function cadastrarFuncionario() {
     erro.value = 'Não foi possível salvar o funcionário.'
   } finally {
     salvando.value = false
-  }
-}
-
-async function alternarAtivo(funcionario) {
-  try {
-    await api.patch(`/api/funcionarios/${funcionario.id}/`, { ativo: !funcionario.ativo })
-    await carregarFuncionarios()
-  } catch (e) {
-    erro.value = 'Não foi possível atualizar o funcionário.'
   }
 }
 
@@ -151,7 +139,6 @@ onMounted(async () => {
             <th>Contrato</th>
             <th>Salário base</th>
             <th>Contratado em</th>
-            <th>Status</th>
             <th></th>
           </tr>
         </thead>
@@ -161,15 +148,6 @@ onMounted(async () => {
             <td>{{ f.tipo_contrato === 'clt' ? 'CLT' : 'Outro' }}</td>
             <td>R$ {{ Number(f.salario_base).toFixed(2) }}</td>
             <td>{{ new Date(f.data_contratacao).toLocaleDateString('pt-BR') }}</td>
-            <td>
-              <button
-                class="pagina__badge"
-                :class="f.ativo ? 'pagina__badge--ativo' : 'pagina__badge--inativo'"
-                @click="alternarAtivo(f)"
-              >
-                {{ f.ativo ? 'Ativo' : 'Inativo' }}
-              </button>
-            </td>
             <td>
               <div class="pagina__acoes">
                 <button class="pagina__botao-editar" @click="iniciarEdicao(f)">
@@ -292,25 +270,6 @@ onMounted(async () => {
 .pagina__tabela td:last-child {
   white-space: nowrap;
   text-align: right;
-}
-
-.pagina__badge {
-  border: none;
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.pagina__badge--ativo {
-  background: rgba(74, 222, 128, 0.15);
-  color: var(--success);
-}
-
-.pagina__badge--inativo {
-  background: rgba(248, 113, 113, 0.15);
-  color: var(--danger);
 }
 
 .pagina__acoes {
